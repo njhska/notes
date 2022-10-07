@@ -1,5 +1,3 @@
-## 琐碎的知识
-
 ### let 和 var
 
 - let声明的范围是块作用域，而var声明的范围是函数作用域
@@ -106,16 +104,85 @@ function User(name){
 }
 ```
 
-## Symbol
+### Symbol
 
 - symbol表示唯一的标识符，用**Symbol()来创建值**
 - 可以使用**Symbol('xx')** 给symbol一个描述
 - symbol创建出来即唯一，与描述无关
 - symbol不会被隐式转换为字符串，这是一种防止混乱的“语言保护”，因为字符串和 symbol 有本质上的不同，不应该意外地将它们转换成另一个。如果我们真的想显示一个 symbol，我们需要在它上面调用 `.toString()，或者获取 symbol.description 属性`
 
-### 作用
+#### 作用
 
 - 用来表示对象的属性键值
 - 代码的任何其他部分都不能访问或改写这些属性
 - symbol属性在for-in循环中、在Object.keys()中不能被访问到
 - Object.assign()会同时复制字符串和symbol属性
+
+### Object与原始值的转换
+
+#### string
+
+```javascript
+alert(obj); 
+anotherObj[obj]
+```
+
+#### number
+
+```javascript
+Number(obj);
++obj;
+date1-date2;
+user1>user2;
+```
+
+#### default
+
+```javascript
+obj1+obj2;//因为字符串和数字都可以应用+
+if(user==1){
+	//与字符串、数字、symbol进行==比较，这时应该用哪种转换不明显，因此也是用default
+}
+```
+
+#### 转换时进行的操作
+
+- 如果存在[Symbol.toPrimitive]方法，这调用这个方法完成所有转换
+  - 这个方法必须返回一个原始值，否则会报错
+- 否则，如果hint是string，尝试调用 `toString`或者 `valueOf方法`
+- 否则，如果hint是number或者default，尝试调用 valueOf或者 `toString`
+
+```javascript
+let user={
+  name:'john',
+  age:19,
+  [Symbol.toPrimitive](hint){
+    console.log(`hint,${hint}`);
+    return hint=='string'?this.name:this.age;
+  }
+}
+
+alert(+user);//hint,number    19
+alert(user);//hint,string    john
+alert(user+500);//hint,default  519
+```
+
+##### toString/valueOf
+
+- string hint 优先调用toString
+- 其他hint 优先调用valueOf
+- 这些方法必须返回原始值，返回对象会被忽略
+- 默认情况下，普通对象已经具有toString和valueOf方法
+  - toString返回 "[object Object]"
+  - valueOf返回对象自身
+- 可以重写这些方法
+
+```javascript
+let user={
+  name:'wyj',
+}
+
+alert(user);//[object Object]
+alert(user===user.valueOf());//true
+alert(user+2);//二元加法：更愿意接受字符串
+```
