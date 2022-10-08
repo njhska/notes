@@ -186,3 +186,104 @@ alert(user);//[object Object]
 alert(user===user.valueOf());//true
 alert(user+2);//二元加法：更愿意接受字符串
 ```
+
+### Iterator
+
+- 对象有Symbol.iterator的方法
+- 当for...of循环启动时，会调用这个方法，如果没有则报错
+- 这个方法必须返回一个迭代器，一个有next方法的对象
+- for...of循环获取下一个值时，调用对象的next方法
+- next方法返回的结果格式为{done:Boolean,value:any}
+
+#### 简单示例
+
+- 第一种
+
+```javascript
+let user = {
+  from: 1,
+  to: 5,
+  [Symbol.iterator]() {
+    return {
+      current: this.from,
+      last: this.to,
+      next() {
+        if (this.current <= this.last) {
+          return { done: false, value: this.current++ };
+        } else {
+          return { done: true };
+        }
+      },
+    };
+  },
+};
+
+for(let item of user){
+    console.log(item);
+}
+```
+
+- 第二种
+
+```javascript
+let user = {
+  from: 1,
+  to: 5,
+  [Symbol.iterator]() {
+    this.current=this.from;
+    return this;
+  },
+  next(){
+    if(this.current<=this.to){
+        return {done:false,value:this.current++};
+    }else{
+        return {done:true};
+    }
+  }
+};
+
+for(let item of user){
+    console.log(item);
+}
+```
+
+#### 可迭代对象和类数组/iterable&array-like
+
+- array-like是有索引和length属性的对象
+- 这两种都可以被Array.from方法转变成数组
+
+### Map和Set
+
+#### 示例代码
+
+```javascript
+let map=new Map;
+map.set(1,'abc');
+map.set('1',1);
+map.set(true,'boolean');
+console.log(map.get(1));
+map.delete(1);
+for(let i of map.keys()){
+    console.log(i);
+}
+for(let i of map.values()){
+    console.log(i);
+}
+for(let i of map.entries()){
+    console.log(i);
+}//for of map默认
+let entries = Object.entries({
+    a:1,
+    b:2,
+    c:3,
+});
+console.log(entries);
+/*
+    [['a',1],['b',2],['c',3]]
+*/
+let map2=new Map(entries);
+Object.fromEntries(map2);
+/*
+    [['a',1],['b',2],['c',3]]
+*/
+```
