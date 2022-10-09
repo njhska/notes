@@ -104,6 +104,59 @@ function User(name){
 }
 ```
 
+### Object系列方法
+
+- Object.keys(obj) 返回对象所有键的数组
+- Object.values(obj) 返回对象所有值的数组
+- Object.entries(obj) 返回对象所有键值对 [key,value] 的数组
+- 以上几种方法都会忽略Symbol键
+- Object.getOwnPropertySymbols(obj) 返回对象所有Symbol类型的键的数组
+- Object.fromEntries(iterable) 把键值对列表转换为对象
+
+### 解构赋值
+
+#### 数组
+
+- 等号右边可以是任意Iterable
+- 等号左边是可以被赋值的项
+
+```javascript
+let user={};
+[user.name,user.age]=['wyj',30];
+console.log(user.name);
+console.log(user.age);
+```
+
+```javascript
+let a='a';
+let b='b';
+[a,b]=[b,a];
+console.log(a);//b
+console.log(b);//a
+```
+
+#### 对象
+
+- 使用 `：`来给属性赋值另一个名字的变量
+- 智能函数参数
+
+```javascript
+function showMenu(title = "Untitled", width = 200, height = 100, items = []) {
+  // ...
+}
+
+showMenu(null,null,2000,10);
+//上边是难看版本
+function showMenu({title = "Untitled", width = 200, height = 100, items = []}={}) {
+    // ...
+}
+
+showMenu({
+    width:900,
+    item:[12,3],
+})
+```
+
 ### Symbol
 
 - symbol表示唯一的标识符，用**Symbol()来创建值**
@@ -328,4 +381,52 @@ let v=new VisitCount();
 let user={name:'wyj'};
 v.countUser(user);
 user=null;//用户离开后，visit自动清空
+```
+
+### Date
+
+#### 构造函数
+
+- 无参 创建当前时间的date对象
+- new Date(milliseconds) 创建一个 `Date` 对象，其时间等于 1970 年 1 月 1 日 UTC+0 之后经过的毫秒数
+  - date.getTime() 或者把date转化为number可以获取毫秒数
+  - 创建1970 年 1 月 1 日之前的时间用负数
+- new Date(str) 创建一个 Date对象，字符串格式为 'YYYY-MM-DDTHH-mm-ss.sssZ'
+  - T是分割符
+  - 可选Z是 +-hh:mm代表时区
+  - Date.parse(str) 方法有相同的用法
+- new Date(year,month,date,hours,minutes,seconds,ms) 创建Date对象
+  - 其中前两个参数是必须的
+  - month从0开始代表一月
+  - date默认是1，h m s ms默认是0
+
+#### 不易记住的方法
+
+- getDate() 返回的日期 从1开始
+- getDay() 返回星期几 从0开始代表周日
+- set系列方法和构造函数都有自动校准功能
+- Date.now() 它相当于 `new Date().getTime()`，但它不会创建中间的 `Date` 对象。因此它更快，而且不会对垃圾回收造成额外的压力
+
+```javascript
+let date1 = new Date(2013, 0, 32); // 32 Jan 2013 ?!?
+alert(date1); // ……是 1st Feb 2013!
+
+let date2 = new Date(2016, 1, 28);
+date3.setDate(date2.getDate() + 2);
+
+alert( date2 ); // 1 Mar 2016
+
+let date3 = new Date();
+date3.setSeconds(date3.getSeconds() + 70);
+
+alert( date3 ); // 显示正确的日期信息
+```
+
+##### 这月有多少天
+
+```javascript
+function getLastDayOfMonth(year, month) {
+  let date = new Date(year, month + 1, 0);
+  return date.getDate();
+}
 ```
