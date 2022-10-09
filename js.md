@@ -287,3 +287,45 @@ Object.fromEntries(map2);
     [['a',1],['b',2],['c',3]]
 */
 ```
+
+### WeakMap和WeakSet
+
+#### weak
+
+- 只能用对象作为键(weakmap)和值(weakmap)
+- 当这些对象除了作为weakmap的键或weakmap的值，在其他的地方都不可达时，它们所代表的项也会在集合中被自动清除
+- 由于集合中项的移除是由垃圾回收器自动执行，所以不能确定weak集合中确定的项
+- 不支持clear size keys values和迭代
+
+#### 示例代码
+
+- map和set
+
+```javascript
+let m=new Map;
+let obj={name:'wyj'};
+m.set(obj,1);
+obj=null;
+console.log(m.size);
+/*
+结果是1，
+因为{name:'wyj'}这个对象被作为m的键引用着
+*/
+```
+
+- weakmap和weakset
+
+```javascript
+class VisitCount{
+    visitCountMap=new WeakMap;
+    countUser(user){
+        let count=this.visitCountMap.get(user)||0;
+        this.visitCountMap.set(user,count+1);
+    }
+}
+//在另外的地方调用
+let v=new VisitCount();
+let user={name:'wyj'};
+v.countUser(user);
+user=null;//用户离开后，visit自动清空
+```
