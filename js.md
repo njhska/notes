@@ -113,6 +113,41 @@ function User(name){
 - Object.getOwnPropertySymbols(obj) 返回对象所有Symbol类型的键的数组
 - Object.fromEntries(iterable) 把键值对列表转换为对象
 
+### json
+
+#### json格式
+
+```javascript
+let json = `{
+    name: "John",                     // 错误：属性名没有双引号
+    "surname": 'Smith',               // 错误：值使用的是单引号（必须使用双引号）
+    'isAdmin': false                  // 错误：键使用的是单引号（必须使用双引号）
+    "birthday": new Date(2000, 2, 3), // 错误：不允许使用 "new"，只能是裸值
+    "friends": [0,1,2,3]              // 这个没问题
+  }`;
+```
+
+#### json系列方法
+
+- JSON.parse(str,(key,value)=>{//处理key value})
+
+```javascript
+let str = '{"title":"Conference","date":"2017-11-30T12:00:00.000Z"}';
+
+let meetup = JSON.parse(str, function(key, value) {
+  if (key == 'date') return new Date(value);
+  return value;
+});
+
+alert( meetup.date.getDate() );
+```
+
+- JSON.stringify(obj,[...keys]|(key,value)=>{//处理key value},number|string)
+- 上边的number是空格的数量，string是用具体的字符串表示缩进
+- 循环引用会报错
+- 在要被序列化的对象中添加toJson方法，会在序列化时默认调用
+  - toJson
+
 ### 解构赋值
 
 #### 数组
