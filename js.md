@@ -1,8 +1,51 @@
 ### let 和 var
 
-- let声明的范围是块作用域，而var声明的范围是函数作用域
+- let声明的范围是块作用域，而var声明的范围是函数作用域，没有块级作用域的说法
 - JavaScript引擎会记录用于变量声明的标识符及其所在的块作用域，因此嵌套使用相同的标识符不会报错，即变量名+块id 确定一个变量
-- var关键字不同，使用let在全局作用域中声明的变量不会成为window对象的属性，不过，let声明仍然是在全局作用域中发生的，相应变量会在页面的生命周期内存续。
+- 使用let在全局作用域中声明的变量不会成为window对象的属性，不过，let声明仍然是在全局作用域中发生的，相应变量会在页面的生命周期内存续。
+- let生命的变量存在死区
+
+```javascript
+let x = 1;
+
+function func() {
+  // 引擎从函数开始就知道局部变量 x，
+  // 但是变量 x 一直处于“未初始化”（无法使用）的状态，直到结束 let（“死区”）
+  // 因此答案是 error
+
+  console.log(x); // ReferenceError: Cannot access 'x' before initialization
+
+  let x = 2;
+}
+
+func();
+```
+
+### strict严格模式下
+
+- 严格模式下，当一个函数声明在一个代码块内时，它在该代码块内的任何位置都是可见的。但在代码块外不可见。
+- 在非严格模式下，函数在代码块外可见，相当于var声明
+
+```javascript
+'use strict'
+/*
+没有use strict正常输出
+有的话报错sayHi is not defined
+*/
+let phrase = "Hello";
+
+if (true) {
+  let user = "John";
+
+  function sayHi() {
+    alert(`${phrase}, ${user}`);
+  }
+}
+
+sayHi();
+```
+
+- 无论是否在严格模式下，setTimeOut和setInterval中的函数中的this默认指向global对象
 
 ### 两种短路操作
 
@@ -40,11 +83,54 @@ delete user?.name;//无事发生
 - ECMA-262规定，任何实现内部[[Call]]方法的对象都应该在typeof检测时返回"function",这也是来自于 JavaScript 语言早期的问题。从技术上讲，这种行为是不正确的，但在实际编程中却非常方便。
 - `typeof null` 的结果为 `"object".`
 
+### function是对象
+
+- name属性，函数的名称，会根据上下文推断、
+- length属性 函数定义时入参的个数，...rest不参与计算
+- 可以位函数添加属性，这个新添加的属性对它的执行没有任何影响
+- 命名函数表达式 let f=function **f1** (){}
+  - 仍然是函数表达式，而不是函数声明
+  - 可用于递归
+  - 在函数外不可见，也就是在递归调用时，外部通过修改函数变量不会影响到函数内部
+
+```javascript
+'use strict'
+function f(){
+  console.log(123);
+}
+f=null;
+f();//error: f is not a function
+```
+
+```javascript
+'use strict'
+let f1 = function f(){
+  console.log(123);
+}
+f=null;//error f is not defined
+```
+
 ### this指向
 
 - 在非严格模式下，当一个函数在没有明确（通过成为某个对象的方法，或者通过call()/apply()）指定this值的情况下执行时，this值等于Global对象
 - 在严格模式下，this没有指向时，this为undefined
 - 箭头函数的this指向函数外层的this
+
+### arguments
+
+- arguments同时时array like和iteabel
+- 箭头函数没有arguments,访问到的arguments属于外部函数
+
+### call，apply和bind
+
+- func.call和func.apply 返回func的执行结果
+  - call期望的参数与func的形式一致
+  - apply期望的参数是类数组，arguments正好是类数组
+  - apply内部有优化 会更快
+- func.bind 返回类似于函数的特殊对象，就行绑定了this的func.
+  - 类函数保存了bind当时的状态，即使func后来被改变了 类函数的执行还是当时的状态
+
+
 
 ### Math.random()
 
@@ -81,10 +167,6 @@ console.log(e.currentTarget);//div
 - 严格相等运算符 `===` 在进行比较时不会做任何的类型转换。
 - `undefined` 和 `null` 在相等性检查 `==` 中不会进行任何的类型转换，它们有自己独立的比较规则，所以除了它们之间互等外，不会等于任何其他的值
 
-### 函数声明
-
-- 在严格模式下，函数声明在代码块内时，它在代码块内的任意位置可见，但在代码块外不可见
-
 ### 对象key的顺序
 
 - 整数属性会被进行排序，其他属性则按照创建的顺序显示
@@ -112,6 +194,23 @@ function User(name){
 - 以上几种方法都会忽略Symbol键
 - Object.getOwnPropertySymbols(obj) 返回对象所有Symbol类型的键的数组
 - Object.fromEntries(iterable) 把键值对列表转换为对象
+
+### 每隔一段时间执行方法的两种方式
+
+```javascript
+let delay = 1000;
+let timeId=setTimeout(function f(){
+  //xxxx
+  timeId=setTimeout(f,delay);
+  //可以修改delay
+  //可以停止
+},delay);
+
+let id=setInterval(function(){
+  //xxx
+  //可以停止
+},delay);
+```
 
 ### json
 
@@ -190,6 +289,78 @@ showMenu({
     width:900,
     item:[12,3],
 })
+```
+
+#### 在方法参数中的使用
+
+```javascript
+function dosth(arg1,arg2,...rest){}
+function dosth1(...rest){}
+let arr1=[1,2,3];
+let arr2=[3,4,5];
+dosth1(...arr1,7,8,9,...arr2);
+
+```
+
+### 对象包装器
+
+#### 出现的原因
+
+- 人们希望可以对原始类型执行操作
+- 同时希望原始类型尽量简单
+
+#### 解决方式
+
+- 原始类型任然是原始的，提供单个值
+- 在访问其属性和方法时，创建其包装对象，访问包装对象的方法和属性
+- 销毁包装对象，只留下原始值
+
+```javascript
+let str='abc';//1
+str.test=5;//2
+console.log(str.test);//3
+//非严格模式下undefind,因为在2时，test属性添加后，包装对象就销毁了，在3又创建了另一个包装对象
+//在严格模式下会报错：Cannot create property 'test' on string 'abc'
+```
+
+### Number类型的精度问题
+
+`` o.1+0.2 == 0.3//false``
+
+#### 出现的原因
+
+- 在内部数字以64位二进制存储，其中52位存储数字，11位标识小数点的位置，1位用于符号 ``1e500//infinity``
+- 二进制数字系统中，可以保证以2的整数次幂作为除数正常工作，但其他的除数都变成无限循环小数
+- js中的数字通过将数字舍入最接近的数字来解决问题，这些舍入规则是我们丢失了极小的精度
+
+#### 解决方法
+
+```javascript
+let sum=0.1+0.2;
+console.log(sum.toFixed(2));
+
+let n=6.35;
+console.log(n.toFixed(1));//6.3
+//出现的原因,如下，四舍五入就变成6.3
+console.log(n.toFixed(20));//6.34999999999999964473
+//解决方法
+console.log(Math.round(6.35*10)/10);
+```
+
+### 字符串比较
+
+- 从第一位开始对比相同位置字符UTF-16的编码大小
+- 因为不同语言的字母都不相同，因此浏览器需要知道要比较的语言
+- 现代标准提供了比较不同语言的字符串的方法 ``str1.localCompare(str2)//返回正数负数或0``
+
+```javascript
+let str='AaBbCc3456';
+let index;
+for(let i=0;i<str.length;i++){
+  index=str.codePointAt(i);//返回所在位置编码数字
+  console.log(index);
+  console.log(String.fromCodePoint(index));//返回编码代表的字符
+}
 ```
 
 ### Symbol
@@ -465,3 +636,17 @@ function getLastDayOfMonth(year, month) {
   return date.getDate();
 }
 ```
+
+### 词法环境
+
+#### 概念
+
+- 每个运行的函数，代码块以及整个脚本，都有词法环境
+- 由两部分组成
+  - 环境记录:一个对象，存储所有局部变量、this等其他信息作为其属性
+  - 对外部词法变量的引用
+
+#### 函数
+
+- 所有函数在诞生时，都会记住创建它的词法环境
+- 所有函数都有一个隐藏的Environment属性，保存了对创建该函数的词法变量的引用
