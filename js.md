@@ -46,6 +46,7 @@ sayHi();
 ```
 
 - 无论是否在严格模式下，setTimeOut和setInterval中的函数中的this默认指向global对象
+- 严格模式下属性标志writable:false，为属性赋值会报错。非严格模式下，只是操作不成功
 
 ### 两种短路操作
 
@@ -130,8 +131,6 @@ f=null;//error f is not defined
 - func.bind 返回类似于函数的特殊对象，就行绑定了this的func.
   - 类函数保存了bind当时的状态，即使func后来被改变了 类函数的执行还是当时的状态
 
-
-
 ### Math.random()
 
 Math.random()方法返回一个0-1的随机小数，包含0但不包含1.从一组连续整数中随机出一个数：
@@ -194,6 +193,29 @@ function User(name){
 - 以上几种方法都会忽略Symbol键
 - Object.getOwnPropertySymbols(obj) 返回对象所有Symbol类型的键的数组
 - Object.fromEntries(iterable) 把键值对列表转换为对象
+
+### for...in循环和Object.keys的区别
+
+```javascript
+'use strict'
+let user={
+  name:'wyj'
+}
+let admin={
+  isAdmin:true,
+  __proto__:user
+}
+
+console.log(Object.keys(admin));//只有isAdmin
+for(let key in admin){
+  console.log(key);//会遍历自己的以及继承的key
+}
+for(let key in admin){
+  if(admin.hasOwnProperty(key)){
+    console.log(key);//使用obj.hasOwnProperty(key)判断是否是自己的属性
+  }
+}
+```
 
 ### 每隔一段时间执行方法的两种方式
 
@@ -650,3 +672,124 @@ function getLastDayOfMonth(year, month) {
 
 - 所有函数在诞生时，都会记住创建它的词法环境
 - 所有函数都有一个隐藏的Environment属性，保存了对创建该函数的词法变量的引用
+
+### 数据属性标志和数据属性描述符
+
+#### Object.getOwnPropertyDescriptor
+
+```javascript
+let user = {
+  name: "John"
+};
+
+let descriptor = Object.getOwnPropertyDescriptor(user, 'name');
+
+alert( JSON.stringify(descriptor, null, 2 ) );
+/* 属性描述符：
+{
+  "value": "John",
+  "writable": true,
+  "enumerable": true,
+  "configurable": true
+}
+*/
+```
+
+#### Object.defineProperty(obj,propetyName,descriptor)
+
+- 如果该属性propertyname存在 更新其desc
+- 如果不存在创建新的属性
+- 没有提供的标志，默认为false
+- 通过obj.xxx {xxx:''}这些方式添加的属性，默认标志都是true
+  - enumerable:false
+    - 不可枚举
+    - 不会出现在for..in循环中
+    - 不会出现在Object.keys中
+  - configurable:false
+    - 不可配置
+    - 属性不能被删除
+    - 属性的标志不能被修改
+    - 有一个例外writable可以从ture->false
+  - value
+  - writable
+
+#### Object.defineProperties(obj,descriptors)
+
+- 允许一次定义多个属性
+
+#### Object.getOwnPropertyDescriptors
+
+- 返回包含symbol类型和不可枚举的属性在内的所有属性描述
+- 与Object.defineProperties配合使用可以克隆对象
+
+```javascript
+let obj={name:'wyj'};
+let clone=Object.defineProperties({},Object.getOwnPropertyDescriptors(obj));
+console.log(clone);
+```
+
+### 访问器属性
+
+```javascript
+let user={
+  firstname:'wang',
+  lastname:'yj',
+  get fullname(){
+    return this.firstname+' '+this.lastname;
+  },
+  set fullname(value){
+    [this.firstname,this.lastname]=value.split(' ');
+  }
+};
+```
+
+#### 访问器属性的描述符
+
+- get 函数
+- set 函数
+- enumerable 访问器属性也在for..in和objct.keys()中
+- configurable
+
+```javascript
+function User(name,birth){
+  this.name=name;
+  this.birth=birth;
+  Object.defineProperty(this,'age',{
+    get(){
+      return new Date().getFullYear()-birth.getFullYear();
+    }
+  })
+}
+
+let u=new User('wyj',new Date('1991-6-21'));
+console.log(u.age);
+```
+
+### 原型继承
+
+- 对象有一个隐藏的属性[[Prototype]],形成原型链
+  - 这个属性可以通过 `` __proto__``访问器访问
+    - `` __proto__``是对[[Prototype]]属性的访问器属性
+    - 现在代码通过 `` Object.getPrototypeOf/Object.setPrototypeOf``两个方法代替 `` __proto__``
+- 构造函数有prototype属性 F.prototype
+  - 由此构造函数创建的对象的[[Prototype]]属性 指向构造函数的prototype属性
+  - F.prototype仅在new F是被瞬时赋值，如果之后修改为新对象，之前new F创建的对象的[[Prototype]]会引用心对象
+  - 构造函数默认有prototype属性，是只有一个constructor属性的对象
+    - constructor默认指向构造函数
+    - 因此不知道构造函数的时候，要创建类似的对象可以这样
+
+```javascript
+function Obj(){}
+
+let obj=new Obj();
+let obj2=new obj.constructor();
+```
+
+### 类
+
+- type class === 'function'
+- class不仅仅是语法糖
+  - class 函数有特殊的[[IsClassConstructor]]:true属性，这个属性是class函数只能通过new来调用，否则会报错
+  - class 的字符串表示都已class开头
+  - class中的方法不可枚举，类定义将 `"prototype"` 中的所有方法的 `enumerable` 标志设置为 `false`。
+  - 类内部的代码总是使用'use strict'
