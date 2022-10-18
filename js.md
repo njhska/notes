@@ -269,6 +269,45 @@ let id=setInterval(function(){
 },delay);
 ```
 
+### 异常处理
+
+```javascript
+class MyError extends Error{
+  constructor(messsage){
+    super(messsage);
+    this.name=this.constructor.name;
+  }
+}
+
+class ValidateError extends MyError{
+
+}
+
+class PropertyRequiredError extends ValidateError{
+  constructor(property){
+    super(property + ' required');
+    this.property=property;
+  }
+}
+
+try{
+  let u=JSON.parse('{"age":18}');
+  if(!u.name){
+    throw new PropertyRequiredError('name');
+  }
+}catch(error){
+  if(error instanceof ValidateError){
+    console.log(error);
+    console.log(error.name);
+    console.log(error.message);
+  }else if(error instanceof SyntaxError){
+    console.log("JSON Syntax Error: " + error.message);
+  }else{
+    throw error;
+  }
+}
+```
+
 ### json
 
 #### json格式
@@ -952,3 +991,40 @@ r.eat();//rabbit eats
 - 静态方法中的this是类本身 可以在静态方法中使用new this()来构建对象
 - extends 子类继承了父类的静态属性和方法。子类(其实是function对象)的[[prototype]]指向了父类
 - 内建类没有使用extends继承 因此内建类上没有Object.xxx系类方法
+
+### Promise
+
+#### 对象构造器语法
+
+```javascript
+let promise=new Promise(function(resolve,reject){
+	//执行的代码
+})
+```
+
+- 传递给promise构造器的函数叫做executor
+- 当promise被创建出来时，executor自动执行
+- 当executor执行出了结果，它应该调用两种回调之一
+  - resolve(value)
+  - reject(error)
+- promise的内部属性，我们无法直接访问
+  - state
+    - 最初是pending
+    - 在resolve被调用后变为fullfilled
+    - 或者在reject被调用后变为rejected
+  - result
+    - 最初是undefined
+    - 在resolve被调用后变为value
+    - 或者在reject被调用后变为error
+- promise只能有一个结果，在executor中执行了resolve或者reject，之后的代码会被忽略
+
+![1666078382455](image/js/1666078382455.png)
+
+#### 消费者
+
+- then(function(result){},function(error){})
+- catch是对.then(null,function(error){})的模拟
+- finally
+  - 处理程序没有参数
+  - 返回结果会被忽略
+  - 抛出error，执行将转到最近的error处理程序
