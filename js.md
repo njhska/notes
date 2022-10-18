@@ -194,6 +194,41 @@ function User(name){
 - Object.getOwnPropertySymbols(obj) 返回对象所有Symbol类型的键的数组
 - Object.fromEntries(iterable) 把键值对列表转换为对象
 
+### instanceof操作符 obj instanceof Class
+
+- 先判断class是否有静态方法Symbol.hasInstance  该方法接受obj作为参数 返回Boolean结果
+- 接着检查Class.prototype是否在obj的原型链上
+
+### Object.prototype.toString方法
+
+- 可以通过call/apply/bind来在所有类型的对象上执行
+- 返回这个对象的Symbol.toStringTag属性
+
+```javascript
+let user={
+  [Symbol.toStringTag]:'user'
+}
+let u = Object.prototype.toString.call(user);
+//或者
+let u1 = {}.toString.call(user);
+console.log(u);//[object user]
+console.log(u);//[object user]
+```
+
+- js中所有的类型都实现了这个属性
+  * 对于 number 类型，结果是 `[object Number]`
+  * 对于 boolean 类型，结果是 `[object Boolean]`
+  * 对于 `null`：`[object Null]`
+  * 对于 `undefined`：`[object Undefined]`
+  * 对于数组：`[object Array]`
+
+### typeof {}.toString.call() instanceof
+
+| typeof           | 用于原始数据类型                                         | 返回string |
+| ---------------- | -------------------------------------------------------- | ---------- |
+| {}.toString.call | 用于原始数据类型，内建类型，有symbol.toStringTag属性类型 | 返回string |
+| instanceof       | 对象                                                     | Boolean    |
+
 ### for...in循环和Object.keys的区别
 
 ```javascript
@@ -773,7 +808,7 @@ console.log(u.age);
     - 现在代码通过 `` Object.getPrototypeOf/Object.setPrototypeOf``两个方法代替 `` __proto__``
 - 构造函数有prototype属性 F.prototype
   - 由此构造函数创建的对象的[[Prototype]]属性 指向构造函数的prototype属性
-  - F.prototype仅在new F是被瞬时赋值，如果之后修改为新对象，之前new F创建的对象的[[Prototype]]会引用心对象
+  - F.prototype仅在new F是被瞬时赋值，如果之后修改为新对象，之前new F创建的对象的[[Prototype]]会引用旧对象
   - 构造函数默认有prototype属性，是只有一个constructor属性的对象
     - constructor默认指向构造函数
     - 因此不知道构造函数的时候，要创建类似的对象可以这样
@@ -787,9 +822,133 @@ let obj2=new obj.constructor();
 
 ### 类
 
+#### 基本概念
+
 - type class === 'function'
 - class不仅仅是语法糖
   - class 函数有特殊的[[IsClassConstructor]]:true属性，这个属性是class函数只能通过new来调用，否则会报错
   - class 的字符串表示都已class开头
   - class中的方法不可枚举，类定义将 `"prototype"` 中的所有方法的 `enumerable` 标志设置为 `false`。
+  - class中的字段和属性可以枚举
   - 类内部的代码总是使用'use strict'
+  - 字段初始化在构造函数之前
+
+```javascript
+class User{
+  name='wyj'//2
+
+  constructor(age){
+    this.age=age;//3
+  }
+}
+let u =new User(17);//1
+for(let key in u){
+  console.log(key);//name,age
+}
+```
+
+#### 类继承
+
+- 继承类除了继承父类的方法 也继承了父类的属性 包括类字段
+  - 方法的继承是因为之类的prototype.[[prototype]]指向了父类的prototype
+  - 属性的继承是因为 调用了父类的构造函数
+- 继承类在new时的执行顺序
+
+```javascript
+class User{
+  name='wyj'//3
+
+  constructor(age){
+    this.age=age;//4
+  }
+}
+
+class admin extends User{
+  isAdmin=true//5
+  constructor(age,pwd){
+    super(age);//2
+    this.pwd=pwd;//6
+  }
+}
+
+let a=new admin(18,123);//1
+```
+
+- 继承类的构造函数的特殊之处
+
+```javascript
+class User{
+  name='wyj'
+  constructor(){
+    console.log(this.name);
+  }
+}
+
+class Admin extends User{
+  name='admin'
+  constructor(){
+    super();
+  }
+}
+
+let a=new Admin;
+//wyj
+/*
+出现的原因
+继承类ctor有[[constructorkind]]:derevied属性，new的时候由父类ctor创建this
+类字段 相当于 this.name=xxx 但是在构造函数之前执行
+继承类的类字段在super之后执行，所以this.name='wyj'
+*/
+```
+
+```javascript
+class User{
+  sayName(){
+    console.log('wyj');
+  }
+  constructor(){
+    this.sayName();
+  }
+}
+
+class Admin extends User{
+  sayName(){
+    console.log('admin');
+  }
+  constructor(){
+    super();
+  }
+}
+
+let a=new Admin;
+//admin
+/*
+出现的原因
+继承类ctor有[[constructorkind]]:derevied属性，new的时候由父类ctor创建this
+对象或者类方法中有[[homeobject]]指向该对象或者new出来的对象
+[[homeobject]]仅被用于super调用，可以解析原型及其方法
+*/
+
+class Animal{
+  name='animal'
+  eat(){
+    console.log(this.name+' eats');
+  }
+}
+
+class Rabbit extends Animal{
+  name='rabbit'
+  eat(){
+    super.eat();
+  }
+}
+
+let r=new Rabbit;
+r.eat();//rabbit eats
+```
+
+#### 静态属性和静态方法
+
+- 静态方法中的this是类本身 可以在静态方法中使用new this()来构建对象
+- extends 子类继承了父类的静态属性和方法。子类(其实是function对象)的[[prototype]]指向了父类
+- 内建类没有使用extends继承 因此内建类上没有Object.xxx系类方法
