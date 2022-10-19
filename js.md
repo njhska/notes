@@ -271,6 +271,8 @@ let id=setInterval(function(){
 
 ### 异常处理
 
+#### 异常扩展
+
 ```javascript
 class MyError extends Error{
   constructor(messsage){
@@ -306,6 +308,14 @@ try{
     throw error;
   }
 }
+```
+
+#### 全局异常处理
+
+```javascript
+window.onerror = function(message, url, line, col, error) {
+    alert(`${message}\n At ${line}:${col} of ${url}`);
+  };
 ```
 
 ### json
@@ -1023,8 +1033,192 @@ let promise=new Promise(function(resolve,reject){
 #### 消费者
 
 - then(function(result){},function(error){})
+  - 返回一个新的promise
+  - ![1666131686271](image/js/1666131686271.png)
 - catch是对.then(null,function(error){})的模拟
+  - 返回一个新的promise
+  - 与上边then一致
 - finally
   - 处理程序没有参数
   - 返回结果会被忽略
   - 抛出error，执行将转到最近的error处理程序
+
+#### 错误处理
+
+- promise的executor和then的handler都有隐形的try..catch
+
+```javascript
+new Promise((resolve,reject)=>{
+    throw new Error();
+})
+//相当于
+new Promise((resolve,reject)=>{
+    reject(new Error);
+})
+```
+
+- then方法可以把未处理的reject promise传递下去
+
+```javascript
+let p=new Promise((resolve,reject)=>{
+    reject(new Error('123'));
+});
+p.name='p';
+console.log(p);//reject promise
+let t= p.then();
+console.log(t);//another rejected promise
+let t2=t.catch(e=>{
+    console.log(e);//直到处理程序的出现
+})
+console.log(t2);//处理了后 fulfilled promise
+
+```
+
+- 浏览器可以添加*unhandledrejection*方法处理未处理的rejection
+
+```javascript
+window.addEventListener('unhandledrejection', function(event) {
+    // 这个事件对象有两个特殊的属性：
+    console.log(event.promise); // [object Promise] —— 生成该全局 error 的 promise
+    console.log(event.reason); // Error: Whoops! —— 未处理的 error 对象
+  });
+  
+ let p= new Promise(function() {
+    throw new Error("Whoops!");
+  }); // 没有用来处理 error 的 catch
+  p.name='p';
+```
+
+#### Promise静态方法
+
+##### Promise.all
+
+- Promise.all(iterable) 期待一个promise数组，返回一个promise
+- then 所有promise都fullfilled了之后，then(handler)接收到resolve数组
+- 结果数组的顺序与promise数组一致
+- 任意一个promise reject，返回的promise立即reject 并且带有这个error
+
+##### Promise.allSettled
+
+- Promise.allSettled(iterable) 期待一个promise数组，返回一个promise
+- then 所有promise都settled之后，无论结果如何，返回一个数组
+  - {status:'fulfilled',value:result}
+  - {status:'rejected',reason:error}
+- 结果数组的顺序与promise数组一致
+- 用Promise.all模拟
+
+```javascript
+if(!Promise.allSettled){
+  Promise.allSettled=function(promises){
+    let all = promises.map(p=>p.then(function(result){
+      return {status:'fullfilled',value:result};
+    },function(error){
+      return {status:'rejected',reason:error};
+    }));
+    return Promise.all(all);
+  }
+}
+```
+
+##### Promise.race
+
+与Promise.all类似，但只等待第一个settled的promise，并获取其结果result或者error
+
+##### Promise.any
+
+- 与Promise.race类似，但只等待第一个 fulfilled 的 promise，并获取其结果
+- 如果所有的promise都rejected，则返回一个rejected promise，error位AggregateError，它有一个数组包含所有的error
+
+```javascript
+Promise.any([
+  new Promise((resolve, reject) => setTimeout(() => reject(new Error("Ouch!")), 1000)),
+  new Promise((resolve, reject) => setTimeout(() => reject(new Error("Error!")), 2000))
+]).catch(error => {
+  console.log(error.constructor.name); // AggregateError
+  console.log(error.errors[0]); // Error: Ouch!
+  console.log(error.errors[1]); // Error: Error!
+});
+```
+
+##### Promise.resolve/reject
+
+#### Promisify
+
+把类似下边的函数转化成promise版本
+
+```javascript
+function loadScript(src, callback) {
+  let script = document.createElement('script');
+  script.src = src;
+
+  script.onload = () => callback(null, script);
+  script.onerror = () => callback(new Error(`Script load error for ${src}`));
+
+  document.head.append(script);
+}
+
+loadScript('src',function(error,script){
+
+});
+```
+
+首先是简单转换
+
+```javascript
+function promiseLoadScript(src){
+  return new Promise((resolve,reject)=>{
+    loadScript(src,(error,script)=>{
+      if(error){
+        reject(error);
+      }
+      resolve(script);
+    })
+  })
+}
+```
+
+通用版本
+
+```javascript
+function promisify(f){
+  return function(...args){
+    return new Promise((resolve,reject)=>{
+      function callback(err,result){
+        if(err){
+          reject(err);
+        }else{
+          resolve(result);
+        }
+      }
+      args.push(callback);
+      f.call(this,...args);
+    })
+  }
+}
+```
+
+#### 微任务队列
+
+promise.then/catch/finally 都是异步的，会被放到微任务队列中执行
+
+只有在JavaScript引擎没有其他任务在运行时才会执行微任务队列
+
+```javascript
+new Promise(resolve=>{
+  console.log(1);
+  resolve()
+}).then(v=>{
+  console.log(4);
+}).then(v=>{
+  console.log(6);
+});
+new Promise(resolve=>{
+  console.log(2);
+  resolve()
+}).then(v=>{
+  console.log(5);
+}).then(v=>{
+  console.log(7);
+});
+console.log(3);
+```
