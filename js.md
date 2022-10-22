@@ -1094,7 +1094,7 @@ window.addEventListener('unhandledrejection', function(event) {
 ##### Promise.all
 
 - Promise.all(iterable) 期待一个promise数组，返回一个promise
-- then 所有promise都fullfilled了之后，then(handler)接收到resolve数组
+- then 所有promise都fullfilled了之后，then(handler)接收到resolve结果的数组
 - 结果数组的顺序与promise数组一致
 - 任意一个promise reject，返回的promise立即reject 并且带有这个error
 
@@ -1221,4 +1221,65 @@ new Promise(resolve=>{
   console.log(7);
 });
 console.log(3);
+```
+
+### Generator
+
+- Generator函数返回 generator object特殊对象
+- 这个对象有next方法，执行next方法的结果 {value:yield的值，done:generator是否执行完成}
+- 使用for...of迭代时，return的值会被忽略（done:true的值被忽略）
+- 可以使用解构语法
+- *[Symbol.iterator]
+
+```javascript
+let range={
+  from:1,
+  to:10,
+  *[Symbol.iterator](){
+    let current=this.from;
+    while(current<=this.to){
+      yield current++;
+    }
+  }
+}
+
+for(let i of range){
+  console.log(i);//1 2 3 4 5 6 7 8 9 10
+}
+/*
+  代码之所以能运行，是因为
+  *function 返回generator
+  它具有next()方法
+  它的next方法返回{value:xxx  done:xx}
+*/
+```
+
+#### yield是双向的
+
+- 可以通过generator.next(value) 向generator函数中传递变量
+- 第一次next不能传递，就算传递了也默认无效
+- 往后的next(value)执行会继续generator的执行，并把value传递给yield等号左边的变量
+- generator.throw(error) 相当于在那一步throw error
+- generator.return(value) 结束generator 返回 {value:value,done:true}
+
+#### Generator组合
+
+```javascript
+function* dosth(from,to){
+  for(let i=from;i<=to;i++){
+    yield i;
+  }
+}
+
+function* allDosth(){
+  yield* dosth(48,57);
+  yield* dosth(65,90);
+  yield* dosth(97,122);
+}
+let str='';
+for(let i of allDosth()){
+  str+=String.fromCharCode(i);
+}
+console.log(str);
+//0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz
 ```
