@@ -229,7 +229,7 @@ console.log(u);//[object user]
 | {}.toString.call | 用于原始数据类型，内建类型，有symbol.toStringTag属性类型 | 返回string |
 | instanceof       | 对象                                                     | Boolean    |
 
-### for...in循环和Object.keys的区别
+### for...in循环和Object.keys的区别 以及属性遍历的方法
 
 ```javascript
 'use strict'
@@ -251,6 +251,13 @@ for(let key in admin){
   }
 }
 ```
+
+#### 遍历方法
+
+* `Object.getOwnPropertyNames(obj)` 返回非 symbol 键。
+* `Object.getOwnPropertySymbols(obj)` 返回 symbol 键。
+* `Object.keys/values()` 返回带有 `enumerable` 标志的非 symbol 键/值（属性标志在 [属性标志和属性描述符](https://zh.javascript.info/property-descriptors) 一章有详细讲解)。
+* `for..in` 循环遍历所有带有 `enumerable` 标志的非 symbol 键，以及原型对象的键。
 
 ### 每隔一段时间执行方法的两种方式
 
@@ -1282,4 +1289,65 @@ for(let i of allDosth()){
 }
 console.log(str);
 //0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz
+```
+
+### 模块
+
+#### 导入导出
+
+导出
+
+* 在声明一个 class/function/… 之前：
+  * `export [default] class/function/variable ...`
+* 独立的导出：
+  * `export {x [as y], ...}`.
+* 重新导出：
+  * `export {x [as y], ...} from "module"`
+  * `export * from "module"`（不会重新导出默认的导出）。
+  * `export {default [as y]} from "module"`（重新导出默认的导出）。
+
+导入：
+
+* 导入命名的导出：
+  * `import {x [as y], ...} from "module"`
+* 导入默认的导出：
+  * `import x from "module"`
+  * `import {default as x} from "module"`
+* 导入所有：
+  * `import * as obj from "module"`
+* 导入模块（其代码，并运行），但不要将其任何导出赋值给变量：
+  * `import "module"`
+
+把 `import/export` 语句放在脚本的顶部或底部，都没关系。
+
+#### 模块的特别
+
+- 必须通过 `` <script type="module">``特性告诉浏览器
+- 始终使用"user strict"
+- 每个模块有自己的顶级作用域
+
+```javascript
+<script type="module">
+  // 变量仅在这个 module script 内可见
+  let user = "John";
+</script>
+
+<script type="module">
+  alert(user); // Error: user is not defined
+</script>
+```
+
+- 如果同一个模块被导入到多个其他位置，那么它的代码只会执行一次，即在第一次被导入时。然后将其导出（export）的内容提供给进一步的导入（importer）
+
+```javascript
+// 📁 1.js
+import { admin } from './admin.js';
+admin.name = "Pete";
+
+// 📁 2.js
+import { admin } from './admin.js';
+alert(admin.name); // Pete
+
+// 1.js 和 2.js 引用的是同一个 admin 对象
+// 在 1.js 中对对象做的更改，在 2.js 中也是可见的
 ```
