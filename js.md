@@ -1351,3 +1351,215 @@ alert(admin.name); // Pete
 // 1.js 和 2.js 引用的是同一个 admin 对象
 // 在 1.js 中对对象做的更改，在 2.js 中也是可见的
 ```
+
+### DOM的自动修正功能
+
+- table永远有 `<tbody> 所以table.firstChild永远是tbody`
+- table中放有除了td th tr tbody等元素之外的元素，自动修正功能会把它们放到外部
+- 顶级标签总是 `<html>`。即使它不存在于文档中 — 它也会出现在 DOM 中，因为浏览器会创建它。对于 `<body>` 也是一样。
+- 在生成 DOM 时，浏览器会自动处理文档中的错误，关闭标签
+
+### 遍历DOM
+
+- node导航
+
+![1666938416212](image/js/1666938416212.png)
+
+- 元素导航
+
+![1666938633772](image/js/1666938633772.png)
+
+- 注意点
+  - document.documentElement.parentNode ===document
+  - document.documentElement.parentElement == null
+  - 因为document不是元素节点
+- table的特殊导航属性
+  - table.rows tr的集合
+  - tr.cells 给定的tr中th 或者td的集合
+  - tr.rowIndex td.cellIndex 行索引和列索引
+
+### 选择器
+
+- document.getElementById
+- elem.querySelectorAll
+- elem.querySelector
+- elem.matches(css) elem是否匹配该选择器
+- elem.closest(css) 从自己开始寻找第一个符合选择器的祖先
+- elem.getElementsByTagName
+- query css系列都是静态的 也就是说在代码的那一步获取的列表就固定了下来
+- getXXX系列都是动态的 也就是说获取的列表可以实时变动
+
+### 节点属性
+
+![1666940313330](image/js/1666940313330.png)
+
+- node.nodeType  1代表元素节点 3代表文本节点 9代表document
+- elem.tagName 仅适用于元素 代表节点名称
+- elem.nodeName 对于元素 与tagName一样 对于其他节点有对应的文本字符串 如 #comment #document
+  - 标签名称始终是大写的
+- elem.innerHTML
+- elem.outerHTML 包含自身在内的HTML内容字符串
+  - `outerHTML` 赋值不会修改 DOM 元素，而是将其从 DOM 中删除并在其位置插入新的 HTML。 如下代码
+
+```html
+<div>Hello, world!</div>
+
+<script>
+  let div = document.querySelector('div');
+
+  // 使用 <p>...</p> 替换 div.outerHTML
+  div.outerHTML = '<p>A new element</p>'; // (*)
+
+  // 蛤！'div' 还是原来那样！
+  alert(div.outerHTML); // <div>Hello, world!</div> (**)
+</script>
+```
+
+- node.nodeValue 和 node.data 仅对文本或者注释节点有效  获取其内容
+- node.textContent 提供了元素内所有文本内容的访问 与innerHTML类似，会替换node中所有内容
+- node.hidden = boolean
+
+### 属性和特性
+
+- 一个元素的标准属性对另外一种元素可能是不可见的 如href对于a标签 type对于input标签
+- 标签的所有特性可以通过下列方法操作
+  * `elem.hasAttribute(name)` —— 检查特性是否存在。
+  * `elem.getAttribute(name)` —— 获取这个特性值。
+  * `elem.setAttribute(name, value)` —— 设置这个特性值。
+  * `elem.removeAttribute(name)` —— 移除这个特性。
+
+* 特性和属性的区别
+  * 特性大小写不敏感 它的值都是字符串类型
+  * 属性大小写敏感 它的值可以是各种类型
+  * 特性和属性有时候可以同步 有时候不行
+* input特性和属性的同步
+
+```html
+<input>
+
+<script>
+  let input = document.querySelector('input');
+
+  // 特性 => 属性
+  input.setAttribute('id', 'id');
+  alert(input.id); // id（被更新了）
+
+  // 属性 => 特性
+  input.id = 'newId';
+  alert(input.getAttribute('id')); // newId（被更新了）
+
+  // 特性 => 属性
+  input.setAttribute('value', 'text');
+  alert(input.value); // text
+
+  // 这个操作无效，属性 => 特性
+  input.value = 'newValue';
+  alert(input.getAttribute('value')); // text（没有被更新！）
+//这个“功能”在实际中会派上用场，因为用户行为可能会导致 value 的更改，
+//然后在这些操作之后，如果我们想从 HTML 中恢复“原始”值，那么该值就在特性中。
+</script>
+```
+
+- a标签href特性和属性
+
+```html
+<a id="a" href="/pp/#hello">aaaa</a>
+<script>
+  console.log(a.href);//file:///D:/pp/#hello
+  console.log(a.getAttribute('href'));///pp/#hello
+</script>
+```
+
+- 非标准特性 data-
+  - data-xxx 特性可以在elem.dataset.xxx属性中读写
+
+### 修改文档
+
+- document.createElement(tagname)
+- document.createTextNode(text)
+- 插入系列方法 这里的string都是原样输入
+  * `node.append(...nodes or strings)` —— 在 `node` **末尾** 插入节点或字符串，
+  * `node.prepend(...nodes or strings)` —— 在 `node` **开头** 插入节点或字符串，
+  * `node.before(...nodes or strings)` —— 在 `node` **前面** 插入节点或字符串，
+  * `node.after(...nodes or strings)` —— 在 `node` **后面** 插入节点或字符串，
+  * `node.replaceWith(...nodes or strings)` —— 将 `node` 替换为给定的节点或字符串。
+
+* elem.insertAdjacentHTML(where,html) 类似innerHTML(html)
+
+  * where
+  * `"beforebegin"` —— 将 `what` 插入到 `elem` 之前，
+  * `"afterbegin"` —— 将 `what` 插入到 `elem` 开头，
+  * `"beforeend"` —— 将 `what` 插入到 `elem` 末尾，
+  * `"afterend"` —— 将 `what` 插入到 `elem` 之后。
+* elem.cloneNode(true/false) 是否拷贝子元素
+* elem.remove()
+
+### 样式和类
+
+- elem.className elem的class字符串
+- elem.classList
+  - .add(xx)
+  - .remove(xx)
+  - .toggle(xx) 如果存在就移除 如果不存在就添加
+  - contains
+- 使用elem.style.xxx设置的样式，可以把elem.style.xxx=''来移除这个样式
+- elem.cssText 对elem的样式完全重写
+- getComputedStyle(elem,伪元素) 解析应用于元素的最终样式值
+
+### 元素大小和滚动
+
+- offsetParent 最接近的祖先
+  - css定位
+  - td th 的是table
+  - 其他的是body
+  - 下列情况offsetParent=null
+    - 未显示的元素
+    - body/html
+    - position:fixed的元素
+- offsetTop/offsetLeft offsetParent内的坐标
+- offsetWidth/offsetHeight 几何宽高
+  - 未显示=0
+- clientTop/clientLeft
+  - 一般情况下是上边框和左边框的宽度
+  - ![1666964029145](image/js/1666964029145.png)
+  - 特殊情况如
+  - ![1666964105117](image/js/1666964105117.png)
+- clientWidth/clientHeight
+  - 提供了元素边框内区域的大小
+  - 它们包括了 “content width” 和 “padding”，但不包括滚动条宽度
+  - ![1666964369387](image/js/1666964369387.png)
+- scrollWidth/scrollHeight 与clientWidth/clientHeight类似
+  - 提供了元素展开后的宽高
+  - 包括padding
+  - 不包括滚动条宽度
+- scrollLeft/scrollTop 滚动出左边和上边的距离
+  - 可写的
+- 注意点
+  - ``let scrollBottom = elem.scrollHeight - elem.scrollTop - elem.clientHeight;``
+  - ``换句话说：（完全高度）减去（已滚出顶部的高度）减去（可见部分的高度）—— 得到的结果就是滚动出来的底部的部分。``
+  - ``clientWidth 是元素的内部内容区域加上 padding，而 CSS width（具有标准的 box-sizing）是内部内容区域，不包括 padding。``
+  - ``如果有滚动条，并且浏览器为其保留了空间，那么某些浏览器会从 CSS width 中减去该空间（因为它不再可用于内容），而有些则不会这样做。clientWidth 属性总是相同的：如果为滚动条保留了空间，那么将减去滚动条的大小。``
+
+### window大小与滚动
+
+- document.documentElement.clientWidth/clientHeight 窗口宽高 不包括滚动条
+- window.innerWidth/innerHeight 窗口宽高 包括滚动条
+- client宽高/scroll宽高/offset宽高三种属性适应与body和html
+- document.documentElement.scrollLeft/scrollTop表示html滚动出的距离
+  - window.pageXOffset/scrollX 替换document.documentElement.scrollLeft
+  - window.pageYOffset/scrollY 替换document.documentElement.scrollTop
+  - 对于设置scrollLeft/scrollTop 可以使用下边的方法替换
+  - 可写
+- window.scrollBy(x,y) 相当于现在的位置前左/上滚动多少距离
+- window.scrollTo(x,y) 吧html滚动到窗口的x,y位置
+- elem.scrollIntoView(true/false)
+  - 把elem移动到可视内
+  - true 使elem出现在顶部
+  - false 使elem出现在底部
+
+### 坐标
+
+- elem.clientX/clientY 相当于窗口的坐标
+- elem.pageX/pageY 相对于文档的坐标
+- elem.getBoundingClientRect() 返回相当于窗口的信息
+- ![1666966930306](image/js/1666966930306.png)
