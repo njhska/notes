@@ -1502,7 +1502,7 @@ alert(admin.name); // Pete
   - .remove(xx)
   - .toggle(xx) 如果存在就移除 如果不存在就添加
   - contains
-- 使用elem.style.xxx设置的样式，可以把elem.style.xxx=''来移除这个样式
+- 使用elem.style.xxx设置的样式，可以把elem.style.xxx=''来重置这个样式，就好像它没有被设置一样（浏览器会应用 CSS 类以及内建样式）
 - elem.cssText 对elem的样式完全重写
 - getComputedStyle(elem,伪元素) 解析应用于元素的最终样式值
 
@@ -1563,3 +1563,235 @@ alert(admin.name); // Pete
 - elem.pageX/pageY 相对于文档的坐标
 - elem.getBoundingClientRect() 返回相当于窗口的信息
 - ![1666966930306](image/js/1666966930306.png)
+
+### 事件
+
+#### 事件处理程序
+
+- 使用onxxx不能为一个事件添加多个处理程序
+- 要想为一个事件添加多个处理程序，要使用elem.addEventListener
+
+```javascript
+Element.addEventListener('click',function(){
+  //handler内容
+},{
+  once:false,//事件触发后是否自动删除该handler
+  capture:false,//false在冒泡阶段触发，true在捕获阶段触发
+  passive:false//如果为true，处理程序将不会调用preventDefault()
+})
+```
+
+#### 事件对象
+
+当事件发生时，浏览器会创建事件对象，用事件的详细信息为事件对象赋值，并把事件对象作为参数传递给处理程序
+
+- event.type 事件类型，如‘click’等
+- event.currentTarget 处理事件的元素
+- 其他一些跟具体事件有关的属性
+
+#### 对象处理程序
+
+elem.addEventListener可以将一个对象分配为事件处理程序，事件触发时，将调用该对象上的handleEvent方法
+
+#### 事件冒泡
+
+当一个事件在元素上发生时，它会首先调用元素的处理程序，然后运行父元素的处理程序，然后一直向上到其他祖先上的处理程序
+
+- event.target 引发事件的嵌套层级最深的元素
+- event.stopPropagation 在当前元素上停止传播
+- event.stopImmediatePropagation 停止传播，并阻止当前元素上的处理程序运行。使用该方法之后，其他处理程序就不会被执行
+- 事件传播用的是同一个event对象
+
+```javascript
+<div id="div1">123
+  <div id="div2">456</div>
+</div>
+<script>
+  div2.onclick=function(event){
+    event.aaa='aaa';
+  }
+  div1.onclick=function(event){
+    console.log(event.aaa);//aaa
+  }
+</script>
+```
+
+#### 阻止浏览器默认行为
+
+- onxxx 可以使用return false
+- 在event上调用preventDefault()
+
+要注意的地方
+
+- 某些事件会相互转化。如果我们阻止了第一个事件的默认行为，那就没有第二个事件了。必须下面阻止了mousedown的默认行为，onfocus的处理程序就不执行了
+- ```html
+  <input onmousedown="return false" onfocus="this.value=''" value="Click me">
+  ```
+- 处理程序的passive选项，向浏览器发出信号，表明处理程序将不会调用 `preventDefault()`
+- event.defaultPrevented 获取event是否被阻止默认行为，在事件传播途径中获取很有用
+
+#### 自定义事件
+
+```javascript
+let event=new Event('click',{
+  bubbles:false,//是否冒泡
+  cancelable:false//如果为true默认行为会被阻止
+})
+Element.dispatchEvent(event);
+```
+
+- 自定义事件可以通过event.isTrusted == ture来判断是否是真实事件，false则是脚本生成的
+- let event=new customEvent('hello',{detail:'xxx'})
+- ```javascript
+  let event=new customEvent('hello',{
+    detail:'自定义hello事件',
+    cancelable:true//如果为true默认行为会被阻止
+  })
+  let result = elem.dispatchEvent(event);//这时result为false
+  elem.addEventListener('hello',function(event){
+    event.preventDefault();
+  })
+  ```
+
+#### 事件中的事件是同步的
+
+一个事件是在另一个事件中发起的。例如使用 `dispatchEvent`。这类事件将会被立即处理，即在新的事件处理程序被调用之后，恢复到当前的事件处理程序。
+
+```html
+<div id="div1">123
+  <div id="div2">456</div>
+</div>
+<script>
+  div2.onclick=function(event){
+    event.stopPropagation();
+    console.log(3);
+  }
+  div1.onclick=function(event){
+    console.log(1);
+    div2.click();
+    console.log(2);
+  }
+//输出 1 3 2
+</script>
+```
+
+#### UI事件
+
+#### 鼠标事件常用属性
+
+- event.button 0:主要按键 1：中键 2:次要按键
+- 组合键属性 event.shiftKey event.altKey event.ctrlKey event.metaKey 在同时按下时为true
+- event.clientX/clientY 相对窗口坐标
+- event.pageX/pageY 相对文档坐标
+
+#### 移动鼠标
+
+##### mouseover/mouseout
+
+- event.relatedTarget 鼠标进入之前的元素/鼠标离开后进入的元素
+- 根据浏览器逻辑，鼠标随时可能位于单个元素上(嵌套最深(z-index最大)))，因此如果它移动到另一个元素(甚至是子元素)，那么它将离开前一个元素
+
+##### mouseenter/mouseleave
+
+- 没有事件冒泡
+- 嵌套内移动，不会触发父元素的leave或者enter
+
+##### 拖动事件
+
+```html
+<div id="container" class="droppable"></div>
+<div id="ball"></div>
+<style>
+  #container {
+    width: 80px;
+    height: 80px;
+    border: 1px solid grey;
+  }
+
+  #ball {
+    width: 40px;
+    height: 40px;
+    background-color: red;
+  }
+</style>
+<script>
+  let ball = document.getElementById('ball');
+  let currentDroppable = null;
+  ball.onmousedown = function (event) {
+    //记录鼠标点在ball上的位置
+    let rect = ball.getBoundingClientRect();
+    let shiftX = event.clientX - rect.left;
+    let shiftY = event.clientY - rect.top;
+
+    ball.style.position = 'absolute';
+    ball.style.zIndex = 1000;
+    //相对于body position:absolute 然后确保在顶部
+    document.body.append(ball);
+
+    function moveAt(pageX, pageY) {
+      //ball.style.left=pageX-ball.offsetWidth/2+'px';
+      //ball的left应该是鼠标的pageX-鼠标点在ball上的shiftX
+      ball.style.left = pageX - shiftX + 'px';
+      //ball.style.top=pageY-ball.offsetHeight/2+'px';
+      ball.style.top = pageY - shiftY + 'px';
+    }
+    moveAt(event.pageX, event.pageY);
+
+    function onMouseMove(event) {
+      moveAt(event.pageX, event.pageY);
+
+      ball.hidden = true;
+      //document.elementFromPoint(获取相对窗口位置的元素)
+      //是嵌套最深处的元素
+      //如果同意坐标有多个元素 返回最上层的元素
+      //因此要把ball隐藏起来
+      let elemBelow = document.elementFromPoint(event.clientX, event.clientY);
+      ball.hidden = false;
+      //除非移除窗口，否则elemBelow最起码是document.body
+      if (!elemBelow) return;
+
+      let droppableBelow = elemBelow.closest('.droppable');
+      //一开始移入 currentDroppable=null
+      //在currentDroppable内部移动 该条件不成立 无事发生
+      //移出时droppableBelow=null
+      if (currentDroppable != droppableBelow) {
+
+        if (currentDroppable) {
+          leaveDroppable(currentDroppable);
+        }
+        currentDroppable = droppableBelow;
+        if (currentDroppable) {
+          enterDroppable(currentDroppable);
+        }
+      }
+    }
+    //document的鼠标移动事件 设置ball的left&top
+    document.addEventListener('mousemove', onMouseMove);
+    //ball的鼠标松开事件 停止document的鼠标移动当前事件侦听
+    ball.onmouseup = function (event) {
+      document.removeEventListener('mousemove', onMouseMove);
+      ball.onmouseup = null;
+    }
+    function enterDroppable(elem){
+      elem.style.background='pink'
+    }
+    function leaveDroppable(elem){
+      elem.style.background=''
+    }
+  }
+</script>
+```
+
+
+#### keydown/keyup
+
+##### 主要属性
+
+- event.key 输出的字符
+- event.code 物理按键代码
+- 组合键属性 event.shiftKey event.altKey event.ctrlKey event.metaKey 在同时按下时为true
+
+#### scroll 滚动发生在window和可滚动元素上
+
+- 页面滚动时，document.documentElement 即html 在window上滚动
+  - scrollleft/top rect.left/top/right/bottom 这些值在滚动时发生变化
