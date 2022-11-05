@@ -1782,7 +1782,6 @@ Element.dispatchEvent(event);
 </script>
 ```
 
-
 #### keydown/keyup
 
 ##### 主要属性
@@ -1795,3 +1794,75 @@ Element.dispatchEvent(event);
 
 - 页面滚动时，document.documentElement 即html 在window上滚动
   - scrollleft/top rect.left/top/right/bottom 这些值在滚动时发生变化
+
+### 表单
+
+#### 获取表单元素
+
+- document.forms.xxx 通过form.name获取form
+- document.forms[x] 通过form序列获取form
+- form.xxx form.elements.xxx 通过form中表单元素name获取表单元素
+- 表单元素.form 指向form
+
+#### 获取表单元素的值
+
+- text/textarea/select 使用value
+- radio button/checkbox 使用Array.from(form.name).filter(x=>x.checked).map(x=>x.value)
+
+#### select和option
+
+##### select/option的重要属性
+
+- select.options option元素的集合
+- select.selectedIndex 当前选择option 的序号
+- 当前被选中的option select.options[select.selectedIndex]
+- select.value
+- option.text
+
+##### select set value
+
+- value=xxx
+- select.selectedIndex =xxx
+- option.selected=true
+
+##### new Option()
+
+创建option元素的快捷语法
+
+new Option(text,value,defaultSelected,selected)
+
+### 焦点
+
+- 元素autofocus 特性可以让焦点在网页加载时默认在元素上
+- 可以通过document.activeElement获取焦点元素
+
+#### focus/blur方法
+
+- 使元素获取或失去焦点
+- alert会时焦点丢失，alert关闭后焦点会回到之前的元素
+- 移除元素会使焦点丢失
+
+#### tabindex 特性
+
+- 使元素有聚焦和失去焦点的特性
+- 值可以为 -1 0 1 2 3 4 5...
+  - 点tab时从1 2 3 4 5
+  - 再到0
+  - 再到其他有焦点功能的元素(按html顺序)
+  - -1 只能以编程方式聚焦元素
+
+#### focus/blur事件不会冒泡
+
+- 但是会捕获，所以使用事件委托可以在捕获阶段
+- 也可以使用focusin/focusout这两个可以冒泡的事件
+
+### 表单事件
+
+- change 对于text 失去焦点时触发 对于select/checkbox/radio button 更改选项时触发
+- input 值发生改变就触发 无论何种方式
+- submit
+  - 在点击input:submit/image时触发
+  - 在input元素上点击回车触发
+    - 回车触发表单提交同时也会触发input:submit点击事件
+  - return false/event.preventDefault 可以阻止提交给服务器
+  - form.submit() 代码编程提交表单
