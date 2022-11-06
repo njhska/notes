@@ -1866,3 +1866,79 @@ new Option(text,value,defaultSelected,selected)
     - 回车触发表单提交同时也会触发input:submit点击事件
   - return false/event.preventDefault 可以阻止提交给服务器
   - form.submit() 代码编程提交表单
+
+### 页面生命周期
+
+当浏览器加载html时遇到script(无论是内部还是外部)，浏览器都会停止构建dom，并立即执行脚本，之后处理剩下部分
+
+#### 页面/资源生命周期事件
+
+```javascript
+<p>123456</p>
+<!-- 1.这里最先加载  -->
+<script>
+  //2.然后执行脚本 document.readyState=loading
+  console.log('initial readyState:' + document.readyState);
+
+  document.addEventListener('readystatechange', () => {
+    console.log('readyState:' + document.readyState);
+    //4.dom已经就绪 readyState:interactive
+    //7.外部资源已加载完成，样式已被应用，图片大小也已知了
+  });
+  document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOMContentLoaded');
+    //5.和4几乎同时执行
+  });
+
+  window.onload = () => {
+    console.log('window onload');
+    //8.和7几乎同时执行
+  };
+</script>
+
+<iframe src="iframe.html" onload="console.log('iframe onload')"></iframe>
+
+<img src="http://en.js.cx/clipart/train.gif" id="img">
+<script>
+  img.onload = () => {
+    console.log('img onload');
+    //6.资源加载完成
+  };
+  window.onbeforeunload=function(){
+    //9.在触发离开的导航，或者关闭页面时
+    return false;//如果reture false 浏览器会询问是否要离开
+  };
+  window.onunload=function(){
+    let analyticsData={};
+    //10.用户离开页面
+    navigator.sendBeacon("/analytics", JSON.stringify(analyticsData));
+    //可以用上边的方法以post形式发送一个请求
+  }
+</script>
+<p>7890</p>
+<!-- 3.dom已经就绪，但资源可能还没加载出来,图片大小可能未知 -->
+```
+
+#### 注意的地方
+
+* 当 DOM 准备就绪时，`document` 上的 `DOMContentLoaded` 事件就会被触发。在这个阶段，我们可以将 JavaScript 应用于元素。
+  * 诸如 `<script>...</script>` 或 `<script src="..."></script>` 之类的脚本会阻塞 `DOMContentLoaded`，浏览器将等待它们执行结束。
+  * 图片和其他资源仍然可以继续被加载。
+* 当页面和所有资源都加载完成时，`window` 上的 `load` 事件就会被触发。我们很少使用它，因为通常无需等待那么长时间。
+* 资源的onload事件中，除了图片都是在资源被添加到doument上时触发，但图片是获得src之后就触发
+
+#### 加载外部脚本
+
+
+`async` 和 `defer` 有一个共同点：加载这样的脚本都不会阻塞页面的渲染。因此，用户可以立即阅读并了解页面内容。
+
+但是，它们之间也存在一些本质的区别：
+
+|           | 顺序                                                                      | `DOMContentLoaded`                                                                                       |
+| --------- | ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `async` | **加载优先顺序** 。脚本在文档中的顺序不重要 —— 先加载完成的先执行 | 不相关。可能在文档加载完成前加载并执行完毕。如果脚本很小或者来自于缓存，同时文档足够长，就会发生这种情况。 |
+| `defer` | **文档顺序** （它们在文档中的顺序）                                 | 在文档加载和解析完成之后（如果需要，则会等待），即在 `DOMContentLoaded` 之前执行。                       |
+
+在实际开发中，`defer` 用于需要整个 DOM 的脚本，和/或脚本的相对执行顺序很重要的时候。
+
+`async` 用于独立脚本，例如计数器或广告，这些脚本的相对执行顺序无关紧要。
