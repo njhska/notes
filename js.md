@@ -1929,7 +1929,6 @@ new Option(text,value,defaultSelected,selected)
 
 #### 加载外部脚本
 
-
 `async` 和 `defer` 有一个共同点：加载这样的脚本都不会阻塞页面的渲染。因此，用户可以立即阅读并了解页面内容。
 
 但是，它们之间也存在一些本质的区别：
@@ -1942,3 +1941,354 @@ new Option(text,value,defaultSelected,selected)
 在实际开发中，`defer` 用于需要整个 DOM 的脚本，和/或脚本的相对执行顺序很重要的时候。
 
 `async` 用于独立脚本，例如计数器或广告，这些脚本的相对执行顺序无关紧要。
+
+### 事件循环：微任务和宏任务
+
+#### 事件循环
+
+当队列里有任务时，从队列取任务执行，当队列里没任务时，休眠
+
+##### 任务种类
+
+- 当脚本加载完成时，任务就是执行它
+- 当用户移动鼠标时，任务就是派生事件和执行处理程序
+- 当安排的setTimeOut到时了，任务就是执行其回调
+
+#### 宏任务
+
+事件循环中的队列，就是宏任务队列
+
+##### 细节
+
+- 引擎执行任务时永远不会进行渲染，仅在一个任务完成后进行渲染
+- 如果一项任务花费时间过长，浏览器无法执行其他任务，过段事件后，浏览器会抛出‘页面未响应’
+
+##### 应用宏任务：拆分耗时任务，显示进度
+
+未拆分任务，渲染要等任务完成
+
+```javascript
+<div id="div"></div>
+<script>
+  let start=Date.now();
+  let i=0;
+  function count(){
+    while(i<2e9){
+      i++;
+    }
+    div.innerHTML=i;
+    alert('用时'+(Date.now()-start));
+  }
+  count();
+</script>
+```
+
+拆分任务，在两次任务中渲染
+
+```javascript
+<div id="div"></div>
+<script>
+  let start=Date.now();
+  let i=0;
+  function count(){
+    do{
+      i++;
+    }while(i%1e6!=0)
+
+    if(i==2e9){
+      alert('用时'+(Date.now()-start));
+    }else{
+      setTimeout(count);
+    }
+    div.innerHTML=i;
+  
+  }
+  count();
+</script>
+```
+
+#### 微任务
+
+一个宏任务执行完，会先检查微任务列表，如果微任务列表有任务，则依次执行微任务列表中的任务。微任务列表中任务执行完成后，如果有渲染任务则进行渲染，没有则执行下个宏任务
+
+![1667915342095](image/js/1667915342095.png)
+
+##### 微任务列表
+
+- 通过Promise.then .catch .finally执行的任务
+- 通过queueMicrotask(func)放入的任务
+
+## 二进制数据
+
+### ArrayBuffer
+
+对固定长度连续内存的引用
+
+`` let buffer=new ArrayBuffer(16);//分配16字节连续内存``
+
+### 想要操作ArrayBuffer,要用一系列TypedArray
+
+* **`Uint8Array`** —— 将 `ArrayBuffer` 中的每个字节视为 0 到 255 之间的单个数字（每个字节是 8 位，因此只能容纳那么多）。这称为 “8 位无符号整数”。
+* **`Uint16Array`** —— 将每 2 个字节视为一个 0 到 65535 之间的整数。这称为 “16 位无符号整数”。
+* **`Uint32Array`** —— 将每 4 个字节视为一个 0 到 4294967295 之间的整数。这称为 “32 位无符号整数”。
+* **`Float64Array`** —— 将每 8 个字节视为一个 `5.0x10<sup>-324</sup>` 到 `1.8x10<sup>308</sup>` 之间的浮点数。
+
+![1667946678243](image/js/1667946678243.png)
+
+```javascript
+let buffer=new ArrayBuffer(16);
+let view=new Uint16Array(buffer);
+console.log(view.BYTES_PER_ELEMENT);//2
+console.log(view.length);//4
+console.log(view.byteLength);//16
+console.log(view.buffer === buffer);;//true
+view[0]=12345;
+for(let i of view){
+  console.log(i);//12345 0 0 0
+}
+
+let view1=new Uint16Array(buffer,0,8);//使用buffer 内存起始位置 内存长度来创建view
+let view2=new Uint16Array([1,2,3,4]);//使用任何类数组类型创建view
+let view3=new Uint8Array(view1);
+//使用view来创建view
+//如果我们尝试将越界值写入类型化数组会出现什么情况？不会报错。但是多余的位被切除。
+let view4=new Uint8Array(8);//创建长度为8的view
+
+//拼接view的方法
+function concat(typedArrays){
+  let temp=[];
+  for(let arr of typedArrays){
+    temp=[...temp,...Array.from(temp)];
+  }
+  return new Uint8Array(temp);
+}
+
+function concat2(typedArrays){
+  let result = typedArrays.reduce((pre,cur)=>{
+    return [...pre,...Array.from(cur)];
+  },[]);
+  return new Uint8Array(result);
+}
+//arr.set(fromarr,[offset]) 在arr中从offset开始，将fromarr放入
+//arr.subarray([begin,end])在arr上截取 并创建新的array
+function concat3(typedArrays){
+  let length=typedArrays.reduce((pre,cur)=>pre+cur.length,0);
+  let result=new Uint8Array(length);
+  let l=0;
+  for(let arr of typedArrays){
+    result.set(arr,length);//
+    length+=arr.length;
+  }
+  return result;
+}
+```
+
+### DataView 操作ArrayBuffer的更灵活的方式
+
+```javascript
+let buffer = new Uint8Array([255, 255, 255, 255]).buffer;
+
+let dataView = new DataView(buffer);
+
+// 在偏移量为 0 处获取 8 位数字
+alert( dataView.getUint8(0) ); // 255
+
+// 现在在偏移量为 0 处获取 16 位数字，它由 2 个字节组成，一起解析为 65535
+alert( dataView.getUint16(0) ); // 65535（最大的 16 位无符号整数）
+
+// 在偏移量为 0 处获取 32 位数字
+alert( dataView.getUint32(0) ); // 4294967295（最大的 32 位无符号整数）
+
+dataView.setUint32(0, 0); // 将 4 个字节的数字设为 0，即将所有字节都设为 0
+```
+
+### 字符串和BufferSource转化
+
+BufferSource-ArrayBuffer和view的总称
+
+```javascript
+//let decoder = new TextDecoder([label]);//编码格式 默认为utf-8
+let uint8Array = new Uint8Array([72, 101, 108, 108, 111]);
+alert( new TextDecoder().decode(uint8Array) ); // Hello
+let encoder = new TextEncoder();
+
+let uint8Array2 = encoder.encode("Hello");
+alert(uint8Array2); // 72,101,108,108,111
+```
+
+### Blob
+
+浏览器在特有的以二进制方式操作文件的对象
+
+```javascript
+new Blob(blobParts,option);
+//blobParts 由blob 字符串 BufferSource组成的数组
+//option {type:MIME类型}
+```
+
+#### Blob用作url
+
+Blob 可以很容易用作 `<a>`、`<img>` 或其他标签的 URL，来显示它们的内容。
+
+```javascript
+<!-- download 特性（attribute）强制浏览器下载而不是导航 -->
+<a download="hello.txt" href='#' id="link">Download</a>
+
+<script>
+let blob = new Blob(["Hello, world!"], {type: 'text/plain'});
+
+link.href = URL.createObjectURL(blob);
+</script>
+```
+
+```javascript
+let link = document.createElement('a');
+link.download = 'hello.txt';
+
+let blob = new Blob(['Hello, world!'], {type: 'text/plain'});
+
+link.href = URL.createObjectURL(blob);
+
+link.click();
+
+URL.revokeObjectURL(link.href);
+```
+
+- 浏览器内部为每个通过 `URL.createObjectURL` 生成的 URL 存储了一个 URL → `Blob` 映射。因此，此类 URL 很短，但可以访问 `Blob`。
+- 生成的 URL（即其链接）仅在当前文档打开的状态下才有效。它允许引用 `<img>`、`<a>` 中的 `Blob`，以及基本上任何其他期望 URL 的对象。
+- 虽然这里有 `Blob` 的映射，但 `Blob` 本身只保存在内存中的。浏览器无法释放它。
+- `URL.revokeObjectURL(url)` 从内部映射中移除引用，因此允许 `Blob` 被删除（如果没有其他引用的话），并释放内存。
+
+#### Blob 转化为base64
+
+```javascript
+let link = document.createElement('a');
+link.download = 'hello.txt';
+
+let blob = new Blob(['Hello, world!'], {type: 'text/plain'});
+
+let reader = new FileReader();
+reader.readAsDataURL(blob); // 将 Blob 转换为 base64 并调用 onload
+
+reader.onload = function() {
+  link.href = reader.result; // data url
+  //data:[<mediatype>][;base64],<data>
+  link.click();
+};
+```
+
+#### Image转Blob
+
+```javascript
+// 获取任何图像
+let img = document.querySelector('img');
+
+// 生成同尺寸的 <canvas>
+let canvas = document.createElement('canvas');
+canvas.width = img.clientWidth;
+canvas.height = img.clientHeight;
+
+let context = canvas.getContext('2d');
+
+// 向其中复制图像（此方法允许剪裁图像）
+context.drawImage(img, 0, 0);
+// 我们 context.rotate()，并在 canvas 上做很多其他事情
+
+// toBlob 是异步操作，结束后会调用 callback
+canvas.toBlob(function(blob) {
+  // blob 创建完成，下载它
+  let link = document.createElement('a');
+  link.download = 'example.png';
+
+  link.href = URL.createObjectURL(blob);
+  link.click();
+
+  // 删除内部 blob 引用，这样浏览器可以从内存中将其清除
+  URL.revokeObjectURL(link.href);
+}, 'image/png');
+```
+
+#### Blob转化为ArrayBuffer
+
+`` blob.arrayBuffer().then(buffer=>{ //处理buffer})``
+
+#### Blob通过Steam操作
+
+当我们读取和写入超过 `2 GB` 的 blob 时，将其转换为 `arrayBuffer` 的使用对我们来说会更加占用内存。这种情况下，我们可以直接将 blob 转换为 stream 进行处理。
+
+```javascript
+// 从 blob 获取可读流
+const stream = blob.stream();
+const reader= steam.getReader();
+
+while (true) {
+  // 对于每次迭代：value 是下一个 blob 数据片段
+  let { done, value } = await reader.read();
+  if (done) {
+    // 读取完毕，stream 里已经没有数据了
+    console.log('all blob processed.');
+    break;
+  }
+
+  // 对刚从 blob 中读取的数据片段做一些处理
+  console.log(value);
+}
+```
+
+#### FileReader 用于从Blob读取数据
+
+主要方法
+
+* **`readAsArrayBuffer(blob)`** —— 将数据读取为二进制格式的 `ArrayBuffer`。
+* **`readAsText(blob, [encoding])`** —— 将数据读取为给定编码（默认为 `utf-8` 编码）的文本字符串。
+* **`readAsDataURL(blob)`** —— 读取二进制数据，并将其编码为 base64 的 data url。
+* **`abort()`** —— 取消操作。
+
+主要事件
+
+* `load` —— 读取完成，没有 error。
+* `abort` —— 调用了 `abort()`。
+* `error` —— 出现 error。
+* 事件完成后，在回调函数中可以通过reader.result/error获取结果
+
+
+### File继承自Blob，并扩展了与文件系统相关的内容
+
+获取file对象的两种方式
+
+- 构造器创建
+
+```javascript
+new File(fileParts, fileName, [options]);
+//fileParts —— Blob/BufferSource/String 类型值的数组。
+//fileName —— 文件名字符串。
+//options —— 可选对象：{lastModified :时间戳}
+```
+
+- input type=file获取
+
+```javascript
+<input type="file" id="file" />
+<script>
+  file.onchange=function(){
+    let f=this.files[0];//从选择的多个文件中获取file对象
+    console.log(f.name);
+    console.log(f.lastModified);
+  }
+</script>
+```
+
+ 上传并立即显示图片
+
+```javascript
+<input type="file" id="file" />
+<img id="img"/>
+<script>
+  file.onchange=function(){
+    let f=this.files[0];//从选择的多个文件中获取file对象
+    console.log(f.name);
+    console.log(f.lastModified);
+    img.src=URL.createObjectURL(f);
+  }
+</script>
+```
