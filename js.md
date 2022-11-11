@@ -2251,7 +2251,6 @@ while (true) {
 * `error` —— 出现 error。
 * 事件完成后，在回调函数中可以通过reader.result/error获取结果
 
-
 ### File继承自Blob，并扩展了与文件系统相关的内容
 
 获取file对象的两种方式
@@ -2292,3 +2291,418 @@ new File(fileParts, fileName, [options]);
   }
 </script>
 ```
+
+## Fetch
+
+### Fetch基本用法
+
+let promise=fetch(url,[options])
+
+获取响应要经过两个阶段
+
+- 第一阶段，当服务器发送了响应头，fetch返回的promise就使用内建的response对象对响应头进行解析。在这个阶段，我们可以通过检查响应头，来检查 HTTP 状态以确定请求是否成功，当前还没有响应体
+
+```javascript
+let response = await fetch(url);
+
+if (response.ok) { // 如果 HTTP 状态码为 200-299
+  // 获取 response body（此方法会在下面解释）
+  let json = await response.json();
+} else {
+  alert("HTTP-Error: " + response.status);
+}
+```
+
+- 第二阶段，为了获取response body，使用response的一系列基于promise的方法
+  * **`response.text()`** —— 读取 response，并以文本形式返回 response，
+  * **`response.json()`** —— 将 response 解析为 JSON 格式，
+  * **`response.formData()`** —— 以 `FormData` 对象的形式返回 response，
+  * **`response.blob()`** —— 以Blob（具有类型的二进制数据）形式返回 response，
+  * **`response.arrayBuffer()`** —— 以ArrayBuffer（低级别的二进制数据）形式返回 response，
+  * 另外，`response.body` 是ReaderSteam 对象，它允许你逐块读取 body
+  * 以上除了所有方法都返回了promise
+
+```javascript
+let response = await fetch('/article/fetch/logo-fetch.svg');
+
+let blob = await response.blob(); // 下载为 Blob 对象
+
+// 为其创建一个 <img>
+let img = document.createElement('img');
+img.style = 'position:fixed;top:10px;left:10px;width:100px';
+document.body.append(img);
+
+// 显示它
+img.src = URL.createObjectURL(blob);
+
+setTimeout(() => { // 3 秒后将其隐藏
+  img.remove();
+  URL.revokeObjectURL(img.src);
+}, 3000);
+```
+
+- 注意的地方
+  - 我们只能选择一种方法来处理response body，如果采用了response.json() 那么如果再用 `response.text()`，则不会生效，因为 body 内容已经被处理过了。
+
+#### response.headers
+
+是类似map的一种数据结构，我们可以按名称（name）获取各个 header，或迭代它们
+
+```javascript
+let response = await fetch('https://api.github.com/repos/javascript-tutorial/en.javascript.info/commits');
+
+// 获取一个 header
+alert(response.headers.get('Content-Type')); // application/json; charset=utf-8
+
+// 迭代所有 header
+for (let [key, value] of response.headers) {
+  alert(`${key} = ${value}`);
+}
+```
+
+#### request header
+
+可以在fetch options中设置request header
+
+```javascript
+let response = fetch(protectedUrl, {
+  headers: {
+    Authentication: 'secret'
+  }
+});
+```
+
+### post请求
+
+在fetch options中添加body选项
+
+#### json格式发送request body
+
+```javascript
+let user = {
+  name: 'John',
+  surname: 'Smith'
+};
+
+let response = await fetch('/article/fetch/post/user', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json;charset=utf-8'
+  },
+  body: JSON.stringify(user)
+});
+
+let result = await response.json();
+alert(result.message);
+```
+
+#### Blob/buffersource发送二进制数据
+
+```javascript
+<body style="margin:0">
+  <canvas id="canvasElem" width="100" height="80" style="border:1px solid"></canvas>
+
+  <input type="button" value="Submit" id="btn" />
+
+  <script>
+    canvasElem.onmousedown=function(){
+      canvasElem.addEventListener('mousemove',draw);
+      canvasElem.onmouseup=function(){
+        canvasElem.removeEventListener('mousemove',draw);
+      };
+      function draw(e){
+        let ctx = canvasElem.getContext('2d');
+        ctx.lineTo(e.clientX,e.clientY);
+        ctx.stroke();
+      }
+    };
+    btn.onclick=function(){
+      canvasElem.toBlob(function(blob){
+        fetch('xxx',{
+          method:'POST',
+          body:blob
+          //这里我们没有手动设置 Content-Type header，
+          //因为 Blob 对象具有内建的类型（这里是 image/png，通过 toBlob 生成的）。
+          //对于 Blob 对象，这个类型就变成了 Content-Type 的值。
+        }).then(response=>{
+          //处理response
+        })
+      },'image/png')
+    }
+  </script>
+</body>
+```
+
+#### 发送form表单
+
+##### FormData对象
+
+```javascript
+let formData = new FormData([form]);//用form元素构建formdata
+formData.append(name, value);//可以多次添加相同name
+formData.append(name, blob, fileName);
+formData.delete(name);
+formData.get(name);
+formData.has(name) —— 如果存在带有给定 name 的字段，则返回 true，否则返回 false
+formData.set(name,value);//清空name,设置为此value
+for(let [name,value] of formData){//可以迭代formData}
+```
+
+##### Fetch可以接受一个 `FormData` 对象作为 body。它会被编码并发送出去，带有 `Content-Type: multipart/form-data`
+
+```html
+<form id="formElem">
+  <input type="text" name="name" value="John">
+  <input type="text" name="surname" value="Smith">
+  <input type="submit">
+</form>
+
+<script>
+  formElem.onsubmit = async (e) => {
+    e.preventDefault();
+
+    let response = await fetch('/article/formdata/post/user', {
+      method: 'POST',
+      body: new FormData(formElem)
+    });
+
+    let result = await response.json();
+
+    alert(result.message);
+  };
+</script>
+```
+
+`Content-Type: multipart/form-data`允许发送文件
+
+```html
+<form id="formElem">
+  <input type="text" name="firstName" value="John">
+  Picture: <input type="file" name="picture" accept="image/*">
+  <input type="submit">
+</form>
+
+<script>
+  formElem.onsubmit = async (e) => {
+    e.preventDefault();
+
+    let response = await fetch('/article/formdata/post/user-avatar', {
+      method: 'POST',
+      body: new FormData(formElem)
+    });
+
+    let result = await response.json();
+
+    alert(result.message);
+  };
+</script>
+```
+
+以form形式提交canvas blob
+
+```html
+<body style="margin:0">
+  <canvas id="canvasElem" width="100" height="80" style="border:1px solid"></canvas>
+
+  <input type="button" value="Submit" id="btn" />
+
+  <script>
+    canvasElem.onmousedown=function(){
+      canvasElem.addEventListener('mousemove',draw);
+      canvasElem.onmouseup=function(){
+        canvasElem.removeEventListener('mousemove',draw);
+      };
+      function draw(e){
+        let ctx = canvasElem.getContext('2d');
+        ctx.lineTo(e.clientX,e.clientY);
+        ctx.stroke();
+      }
+    };
+    btn.onclick=function(){
+      let formData=new FormData();
+      canvasElem.toBlob(function(blob){
+        formData.append('name','wyj');
+        formData.append('image',blob,'demo.png');
+        //就像表单中有 <input type="file" name="image"> 一样，
+        //用户从他们的文件系统中使用数据 imageBlob（第二个参数）
+        //提交了一个名为 demo.png（第三个参数）的文件。
+        fetch('xxx',{
+          method:'POST',
+          body:formData
+        }).then(response=>{
+          //处理response
+        })
+      },'image/png')
+    }
+  </script>
+</body>
+```
+
+### response.body
+
+response.body是ReadableSteam对象，它允许逐块读取body，我们可以通过它和response.headers中的‘Content-Length’来判断读取进度
+
+```javascript
+async function f(){
+    let response=await fetch('url');
+    let reader=response.body.getReader();
+    let contentLength=response.headers.get('Content-Length');
+    //用于计算下载百分比
+    let sumLength=0;
+    let arr=[];
+    while(true){
+      const {value,done}=await reader.read();
+      if(done){
+        break;
+      }
+      sumLength+=value.length;
+      //可以在sumLength超标后停止
+      arr.push(value);
+      //steam.reader每次获取的value是一个uint8array对象
+    }
+    let result=new Uint8Array(sumLength);
+    let offset=0;
+    for(let a of arr){
+      result.set(a,offset);
+      offset+=a.length;
+    }
+    new TextDecoder().decode(result);
+  }
+```
+
+### 中止信号
+
+#### AbortController的基本用法
+
+```javascript
+  let controller=new AbortController();
+  let signal=controller.signal;
+  signal.addEventListener('abort',function(){
+    //在signal上监听中止事件
+  });
+  controller.abort();//当controller调用中止方法时，abort事件被触发
+  signal.aborted==true;
+```
+
+#### 和fetch一起使用
+
+```javascript
+  async function f() {
+    let controller = new AbortController();
+    try {
+      //AbortController调用abort方法后
+      //fetch promise以一个 error AbortError reject
+      let response = await fetch('url', {
+        signal: controller.signal
+      });
+      let result=await response.json();
+    } catch (error) {
+      if(error.name=='AbortError'){
+        console.log('请求被中止了');
+      }else{
+        throw error;
+      }
+    }
+  }
+```
+
+## CORS
+
+跨源请求中的源指不同的协议(protocol)/域(domain)/端口(port)
+
+CORS只会发生在脚本中：
+
+跨域是指 *当一个资源从与该资源本身所在的服务器不同的域或端口不同的域或不同的端口请求一个资源时，资源会发起一个 **跨域 HTTP 请求** 。* 也就是说，正常的跨域情况，是你访问了一个A网站，然后这个网站返回的资源里面，请求了B网站/端口的资源，于是就跨域了。所以，跨域这个情况只会出现在浏览器页面里，因为实际上是浏览器由于安全原因限制了这些请求的访问。
+
+作者：庞登广
+链接：https://www.zhihu.com/question/62678567/answer/204352928
+来源：知乎
+著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。
+
+共有两种跨源请求方式
+
+### 安全请求
+
+如果一个请求满足下面这两个条件，则该请求是安全的：
+
+1. 安全的方法:GET，POST 或 HEAD
+2. 安全的header--仅允许自定义下列 header：
+   * `Accept`，
+   * `Accept-Language`，
+   * `Content-Language`，
+   * `Content-Type` 的值为 `application/x-www-form-urlencoded`，`multipart/form-data` 或 `text/plain`。
+
+#### 安全请求的过程
+
+- 如果一个请求是跨源的，浏览器始终会向其添加 `Origin` header。
+  - `Origin` 包含了确切的源（domain/protocol/port），没有路径（path）
+- 服务器可以检查 `Origin`，如果同意接受这样的请求，就会在响应中添加一个特殊的 header `Access-Control-Allow-Origin`:*或者请求的origin
+
+浏览器在这里充当一个两方都信任的中间人
+
+- 确保发送的跨源请求带有正确的 `Origin`
+- 检查响应中的许可 `Access-Control-Allow-Origin`，如果存在，则允许 JavaScript 访问响应，否则将失败并报错
+
+![1668175632135](image/js/1668175632135.png)
+
+这时候JavaScript可以访问的response.headers有限，只有以下几个安全的header
+
+访问其他header都会导致出错
+
+* `Cache-Control`
+* `Content-Language`
+* `Content-Type`
+* `Expires`
+* `Last-Modified`
+* `Pragma`
+
+除非服务器返回的response.headers中有Access-Control-Expose-Headers:被允许的headers。这时脚本就可以访问这些被允许的headers了
+
+### 非安全请求
+
+除了安全请求都是非安全请求
+
+#### 请求过程
+
+- 发出非安全请求
+- 浏览器确保发送一个预检请求 preflight
+  - options方法
+  - 没有body
+  - 三个主要header
+    - origin
+    - `Access-Control-Request-Method` header 带有非安全请求的方法。
+    - `Access-Control-Request-Headers` header 提供一个以逗号分隔的非安全 HTTP-header 列表。
+- 如果服务器同意请求，它会进行响应
+  - 200
+  - 没有body
+  - 三个主要header
+    - `Access-Control-Allow-Origin` 必须为 `*` 或进行请求的源（例如 `https://javascript.info`）才能允许此请求。
+    - Access-Control-Allow-Methods 必须具有允许的方法。
+    - `Access-Control-Allow-Headers` 必须具有一个允许的 header 列表。
+    - 另外，`Access-Control-Max-Age` 可以指定缓存此权限的秒数。因此，浏览器不是必须为满足给定权限的后续请求发送预检。
+- 预检成功后，浏览器发出主请求
+- 等待服务器回应后，脚本可以操作response了
+
+![1668177070527](image/js/1668177070527.png)
+
+### 凭证
+
+默认情况下，由 JavaScript 代码发起的跨源请求不会带来任何凭据（cookies 或者 HTTP 认证（HTTP authentication））。
+
+这对于 HTTP 请求来说并不常见。通常，对 `http://site.com` 的请求附带有该域的所有 cookie。但是由 JavaScript 方法发出的跨源请求是个例外。
+
+例如，`fetch('http://another.com')` 不会发送任何 cookie，即使那些 (!) 属于 `another.com` 域的 cookie。
+
+为什么？
+
+这是因为具有凭据的请求比没有凭据的请求要强大得多。如果被允许，它会使用它们的凭据授予 JavaScript 代表用户行为和访问敏感信息的全部权力。
+
+服务器真的这么信任这种脚本吗？如果是，它必须显式地带有允许请求的凭据和附加 header。
+
+要在 `fetch` 中发送凭据，我们需要添加 `credentials: "include"` 选项，像这样：
+
+现在，`fetch` 将把源自 `another.com` 的 cookie 和我们的请求发送到该网站。
+
+如果服务器同意接受 **带有凭据** 的请求，则除了 `Access-Control-Allow-Origin` 外，服务器还应该在响应中添加 header `Access-Control-Allow-Credentials: true`。
+
+请注意：对于具有凭据的请求，禁止 `Access-Control-Allow-Origin` 使用星号 `*`。如上所示，它必须有一个确切的源。这是另一项安全措施，以确保服务器真的知道它信任的发出此请求的是谁。
