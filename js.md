@@ -256,7 +256,7 @@ for(let key in admin){
 
 * `Object.getOwnPropertyNames(obj)` 返回非 symbol 键。
 * `Object.getOwnPropertySymbols(obj)` 返回 symbol 键。
-* `Object.keys/values()` 返回带有 `enumerable` 标志的非 symbol 键/值（属性标志在 [属性标志和属性描述符](https://zh.javascript.info/property-descriptors) 一章有详细讲解)。
+* `Object.keys/values()` 返回带有 `enumerable` 标志的非 symbol 键/值。
 * `for..in` 循环遍历所有带有 `enumerable` 标志的非 symbol 键，以及原型对象的键。
 
 ### 每隔一段时间执行方法的两种方式
@@ -2706,3 +2706,120 @@ CORS只会发生在脚本中：
 如果服务器同意接受 **带有凭据** 的请求，则除了 `Access-Control-Allow-Origin` 外，服务器还应该在响应中添加 header `Access-Control-Allow-Credentials: true`。
 
 请注意：对于具有凭据的请求，禁止 `Access-Control-Allow-Origin` 使用星号 `*`。如上所示，它必须有一个确切的源。这是另一项安全措施，以确保服务器真的知道它信任的发出此请求的是谁。
+
+## URL对象
+
+url对象的属性。
+
+![1668234227831](image/js/1668234227831.png)
+
+可以把url对象传递给需要用到url字符串的地方，因为这些方法大多数都会执行字符串转换
+
+### url.searchParams
+
+* **`append(name, value)`** —— 按照 `name` 添加参数，
+* **`delete(name)`** —— 按照 `name` 移除参数，
+* **`get(name)`** —— 按照 `name` 获取参数，
+* **`getAll(name)`** —— 获取相同 `name` 的所有参数（这是可行的，例如 `?user=John&user=Pete`），
+* **`has(name)`** —— 按照 `name` 检查参数是否存在，
+* **`set(name, value)`** —— set/replace 参数，
+* **`sort()`** —— 按 name 对参数进行排序，很少使用，
+* ……并且它是可迭代的，类似于 `Map`。
+
+```javascript
+let url = new URL('https://google.com/search');
+
+url.searchParams.set('q', 'test me!'); // 添加带有一个空格和一个 ! 的参数
+
+alert(url); // https://google.com/search?q=test+me%21
+
+url.searchParams.set('tbs', 'qdr:y'); // 添加带有一个冒号 : 的参数
+
+// 参数会被自动编码
+alert(url); // https://google.com/search?q=test+me%21&tbs=qdr%3Ay
+
+// 遍历搜索参数（被解码）
+for(let [name, value] of url.searchParams) {
+  alert(`${name}=${value}`); // q=test me!，然后是 tbs=qdr:y
+}
+```
+
+### url编码
+
+标准定义了 URL 中允许哪些字符，不允许哪些字符。
+
+那些不被允许的字符必须被编码，例如非拉丁字母和空格 —— 用其 UTF-8 代码代替，前缀为 `%`，例如 `%20`（由于历史原因，空格可以用 `+` 编码，但这是一个例外）。
+
+#### 两种编码方式
+
+- encodeURI 仅编码url标准中不允许的字符
+- encodeURIComponent 也编码url标准中不允许的字符，此外，还编码 `#`，`$`，`&`，`+`，`,`，`/`，`:`，`;`，`=`，`?` 和 `@` 字符。
+- 对url参数编码应该使用encodeURIComponent
+
+```javascript
+  let music1=encodeURI('rock&roll');
+  let url1=`http://music.com?type=${music1}`;
+  let music2=encodeURIComponent('rock&roll');
+  let url2=`http://music.com?type=${music2}`;
+  console.log(url1);//http://music.com?type=rock&roll 这样参数回收type=rock,roll=undefind
+  console.log(url2);//http://music.com?type=rock%26roll
+```
+
+## XMLHttpRequest
+
+- 为了兼容没有promise功能的浏览器
+- 为了查看上传进度
+
+```javascript
+let xhr=new XMLHttpRequest();
+const async=true;//是否异步，默认为true
+xhr.open('post','url',async);//xhr.readyState==1 open 被调用
+xhr.timeout = 10000; // timeout 单位是 ms，此处即 10 秒
+xhr.withCredentials = true;//跨源请求时要不要带上凭证
+xhr.setRequestHeader('Content-Type', 'application/json');
+let user={name:'wyj'};
+xhr.send(JSON.stringify(user));
+xhr.responseType="json";
+// ""（默认）—— 响应格式为字符串
+// "text" —— 响应格式为字符串
+// "arraybuffer" —— 响应格式为 ArrayBuffer
+// "blob" —— 响应格式为 Blob
+// "document" —— 响应格式为 XML document（可以使用 XPath 和其他 XML 方法）或 HTML document（基于接收数据的 MIME 类型）
+// "json" —— 响应格式为 JSON（自动解析）。
+xhr.onload=function(){
+  //请求完成
+  //xhr.readyState==2 接收到 response header
+  //xhr.getAllResponseHeaders();返回response header字符串 以\r\n分割
+  let contentType = xhr.getResponseHeader('Content-Type');
+  if(xhr.status==200){//http状态码数值
+    //xhr.readyState==4 请求完成
+    let result = xhr.response;//根据responsetype确定类型
+  }
+};
+xhr.onerror=function(){
+  //请求出错
+};
+xhr.onprogress=function(event){
+  //在下载响应期间定期触发 xhr.readyState==3 响应正在被加载
+  // event.loaded —— 已经下载了多少字节
+  // event.lengthComputable = true，当服务器发送了 Content-Length header 时
+  // event.total —— 总字节数（如果 lengthComputable 为 true）
+  alert(`Received ${event.loaded} of ${event.total}`);
+};
+xhr.ontimeout=function(){
+  //如果在xhr.timeout时间内，请求没有执行成功
+}
+
+//xhr.upload 专门用于跟踪上传的属性
+xhr.upload.onprogress = function(event) {
+  alert(`Uploaded ${event.loaded} of ${event.total} bytes`);
+};
+
+xhr.upload.onload = function() {
+  alert(`Upload finished successfully.`);
+};
+
+xhr.upload.onerror = function() {
+  alert(`Error during the upload: ${xhr.status}`);
+};
+```
