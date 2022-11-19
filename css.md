@@ -270,6 +270,7 @@ div{
 
 - 只有上下外边距会折叠，左右外边距不会
 - 折叠指相邻元素边距取最大值，父子元素同样取最大值，因此父元素不会被子元素的外边距撑开
+- 左右外边距会把边上的元素推开，也会把容器撑开
 
 ### 防止外边距折叠的方式
 
@@ -277,3 +278,107 @@ div{
 - 在两个外边距之间加上边框或者内边距，防止它们折叠。如给父容器加上边框
 - 如果容器为浮动元素、内联块、绝对定位或固定定位时，外边距不会在它外面折叠。
 - 当使用Flexbox布局时，弹性布局内的元素之间不会发生外边距折叠。网格布局同理
+
+## 浮动
+
+- 浮动元素不在普通文档流内，它的高度不会加到父元素上
+- clear声明让该元素移动到浮动元素的下边，而不是侧边
+
+### 清除浮动
+
+clear声明只能加到块级元素上
+
+方法一
+
+```css
+    .clearfix::after{
+        content: ' ';
+        display: block;
+        clear: both;
+        /* 给容器加上after伪元素来清除浮动 */
+    }
+```
+
+这种方式浮动子元素和普通子元素在外边距的表现上不一致
+
+- 普通子元素的外边距会折叠父元素
+- 浮动子元素的外边距不会折叠父元素 而是包含在父元素中
+
+方法二
+
+```css
+    .clearfix::after,
+    .clearfix::before{
+        display: table;
+        content: ' ';
+    }
+    .clearfix::after{
+        clear: both;
+    }
+```
+
+- 无论是在单元格元素内部还是在单元格元素上下，设置了外边距的元素的外边距都跨过单元格元素
+- display:table 内部隐式创建了单元行和单元格
+- 上边的写法确保了容器内的元素外边距不会折叠容器的外边距
+
+### 浮动的诡异行为
+
+![1668843927063](image/css/1668843927063.png)
+
+解决方式
+
+- 浮动子元素设置百分比宽度，以确定每行几个
+- 在每行的第一个元素上清楚浮动 `` :nth-child(xn+1){clear:both;}``
+
+### BFC
+
+给元素添加以下的任意属性值都会创建 BFC
+
+- float：  left 或right，不为 none 即可。
+- overflow ：hidden 、auto 或scroll，不为visible即可。
+- display：inline-block、table-cell、table-caption、flex、inline-flex、grid 或inline-grid。拥有这些属性的元素称为块级容器（block container）。
+- position：absolute 或position: fixed。
+
+创建了BFC的元素的特点
+
+- 包含了内部所有元素的上下外边距。它们不会跟 BFC 外面的元素产生外边距折叠。
+- 包含了内部所有的浮动元素。
+- 不会跟BFC 外面的浮动元素重叠。
+
+### 栅格系统
+
+```css
+    :root{
+        box-sizing: border-box;
+    }
+    *,::after,::before{
+        box-sizing: inherit;
+    }
+    .row::after {
+        content: ' ';
+        display: block;
+        clear: both;
+    }
+    .row{
+        margin-left: -.75em;
+        margin-right: -.75em;
+    }
+    [class*='column-'] {
+        float: left;
+        padding:0 .75em;
+        margin-top: 0;
+    }
+
+    .column-1 {width: 8.3333%; }
+    .column-2 {width: 16.6667%;}
+    .column-3 {width: 25%;}
+    .column-4 {width: 33.3333%;}
+    .column-5 {width: 41.6667%;}
+    .column-6 {width: 50%;}
+    .column-7 {width: 58.3333%;}
+    .column-8 {width: 66.6667%;}
+    .column-9 {width: 75%;}
+    .column-10 {width: 83.3333%;}
+    .column-11 {width: 91.6667%}
+    .column-12 {width: 100%;}
+```
