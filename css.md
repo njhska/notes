@@ -711,7 +711,7 @@ clear声明只能加到块级元素上
 
 @media(max-width:50em) 小于50em的视口
 
-@media(min-width:20em) and (max-width:35em) 大于20em且小于50em的视口
+@media(min-width:20em) and (max-width:35em) 大于20em且小于50em的视
 
 @media(max-width:20em), (min-width:35em) 小于20em或者大于35em 的视口
 
